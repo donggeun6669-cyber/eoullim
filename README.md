@@ -5,6 +5,8 @@ Campus-life helper for international and exchange students at SKKU.
 
 링크(QR)로 여는 모바일 웹앱입니다. 설치가 필요 없습니다.
 
+**데모: https://eoullim-skku.vercel.app** (프로젝트 소개: https://eoullim-skku.vercel.app/#/about)
+
 ## 기능
 
 | 신청서의 기능 | 앱 화면 |
@@ -32,7 +34,7 @@ npm run dev      # http://localhost:5173
 npm run build    # dist/
 ```
 
-배포는 Vercel (GitHub `main`에 푸시하면 자동 배포). 저장소가 private이라 GitHub Pages 워크플로(`.github/workflows/deploy.yml`)는 수동 실행으로만 남겨 두었다 — 무료 플랜에서는 동작하지 않는다.
+배포는 Vercel 프로젝트 `eoullim` (계정 donggeun6669-5211) → `eoullim-skku.vercel.app`. GitHub `main`에 푸시하면 자동 배포된다. (`eoullim.vercel.app`은 다른 사람이 쓰는 주소라 쓰지 않는다.) 저장소가 private이라 GitHub Pages 워크플로(`.github/workflows/deploy.yml`)는 수동 실행으로만 남겨 두었다 — 무료 플랜에서는 동작하지 않는다.
 
 ## 디자인
 
