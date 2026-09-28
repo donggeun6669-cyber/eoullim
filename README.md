@@ -32,7 +32,7 @@ npm run dev      # http://localhost:5173
 npm run build    # dist/
 ```
 
-`main`에 푸시하면 GitHub Actions가 GitHub Pages로 배포한다 (`.github/workflows/deploy.yml`).
+배포는 Vercel (GitHub `main`에 푸시하면 자동 배포). 저장소가 private이라 GitHub Pages 워크플로(`.github/workflows/deploy.yml`)는 수동 실행으로만 남겨 두었다 — 무료 플랜에서는 동작하지 않는다.
 
 ## 디자인
 
