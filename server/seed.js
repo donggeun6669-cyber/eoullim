@@ -11,7 +11,7 @@ const AZIZ = S('Aziz', '🦉', 3)
 const YUKI = S('Yuki', '🌙', 4)
 const BAT = S('Bat', '🐧', 5)
 const WEI = S('Wei', '🐼', 6)
-const ADMIN = S('Minji · Korean manager', '🐯', 0)
+const ADMIN = S('Minji', '🐯', 0)
 
 let n = 0
 const id = (p) => `${p}seed${String(++n).padStart(3, '0')}`
