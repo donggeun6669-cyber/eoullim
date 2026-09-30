@@ -21,13 +21,13 @@ export default function About() {
         </span>
       </div>
       <p className="about-lead">
-        {tx('Instead of relying on one buddy’s goodwill, the whole campus answers.', '버디 한 명의 선의에 기대는 대신, 커뮤니티 전체가 답하게 만들었습니다.')}
+        {tx('Where buddy programs don’t reach, the whole campus answers.', '버디 프로그램이 닿지 않는 곳에서, 캠퍼스 전체가 답합니다.')}
       </p>
 
       {block(tx('Who it is for', '누구를 위해'), (
         <ul>
-          <li>{tx('Degree-seeking international students with no buddy — SKKU’s Global Buddy is for freshmen only.', '버디가 없는 학위과정 유학생 — 성대 「글로벌 버디」는 학위과정 신입생만 대상이에요.')}</li>
-          <li>{tx('Exchange students whose buddy is stretched thin — in SG MAPLE one Korean buddy looks after about 4–6 students.', '버디의 도움이 부족한 교환학생 — 「SG MAPLE」은 한국인 버디 1명이 약 4~6명을 맡아요.')}</li>
+          <li>{tx('Degree-seeking international students in the buddy blind spot — SKKU’s Global Buddy is for freshmen only, so 2nd-years and up, transfer and graduate students have no program.', '버디 프로그램의 사각지대에 있는 학위과정 유학생 — 성대 「글로벌 버디」는 신입생만 대상이라 2학년 이상·편입생·대학원생은 들어갈 프로그램이 없어요.')}</li>
+          <li>{tx('Students who find a 1:1 buddy too much — they just want to ask when they need to. (Buddy programs like SG MAPLE work well for exchange students; Eoullim fills the gap around them.)', '1:1 버디가 부담스러운 학생 — 필요할 때만 가볍게 묻고 싶은 사람. (SG MAPLE 같은 버디 프로그램은 교환학생에게 잘 작동해요. 어울림은 그 바깥을 채워요.)')}</li>
         </ul>
       ))}
 
