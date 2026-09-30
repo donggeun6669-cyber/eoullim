@@ -1,46 +1,50 @@
-# Eoullim 어울림
+# Eoullim 어울림 — v2
 
-국내 외국인 유학생·교환학생을 위한 캠퍼스 생활 도우미 — 성균관대 HUSS AI BRIDGE 「AI 융합 커뮤니티」 2gether 팀 프로토타입.
-Campus-life helper for international and exchange students at SKKU.
+버디가 없는 외국인 유학생이 **포인트를 걸고 물어보면 누군가 답해 주는** 캠퍼스 커뮤니티 — 성균관대 HUSS AI BRIDGE 「AI 융합 커뮤니티」 2gether 팀.
+A campus community where international students without a buddy put points on a question and the adopted answer gets them.
 
-링크(QR)로 여는 모바일 웹앱입니다. 설치가 필요 없습니다.
-
-**데모: https://eoullim-skku.vercel.app** (프로젝트 소개: https://eoullim-skku.vercel.app/#/about)
+**데모: https://eoullim-skku.vercel.app** (소개: `#/about`) · 가입·로그인 없이 QR로 바로 쓴다.
+v1(멘토 매칭 데모, 2026-09-28)은 태그 `v1-demo`에 남아 있다.
 
 ## 기능
 
-| 신청서의 기능 | 앱 화면 |
+| 화면 | 무엇 |
 |---|---|
-| 기본 — 기존 지원 프로그램 소개·연결 | **Guide › Programs** — SG MAPLE, HI-Club, S-LINK, 학부대학 글로벌 버디, OISS, 국제처, 성균어학원, 학생상담센터 (공식 페이지 링크) |
-| 메인 — 유학생 선후배·교환학생 커뮤니티 | **Home / Find / Chat** — 멘토·멘티 매칭, 도움 요청 → 자동 연결 → 채팅(번역) → 도움 확인(+50 P) · **Community** — 모먼트, Q&A, 모임 |
-| 메인 — 한국 친구 소개 | **Find › Friends** — 관심사·언어가 겹치는 한국 학생 추천, 인사하기 |
-| AI (필요시 LLM) | **Guide › Help Bot** — 성균관대 공식 안내 15개 주제에서 답을 찾아 **출처 링크와 함께** 답함. 질문 언어(한/영)에 맞춰 답하고, 안내에 없으면 추측하지 않고 멘토·Q&A로 넘김 |
+| **홈** | 프로필 카드(선택) · 내 포인트 · 바로 가기 · 답을 기다리는 질문 · 모집 중 |
+| **해결** | 포인트 걸고 묻기 — 알려줄 사람 / 빌려줄 사람 / 해줄 사람. 채택하면 포인트가 답변자에게. 72시간 무답변 자동 환불, 7일 미채택은 관리자 결정 |
+| **커뮤니티** | 같이 해요(모집·참여) · 자유 · 언어별 라운지(국적 대신 언어) · 인기. 기본 익명 |
+| **포인트** | 100원 = 1P · 충전(데모, 실제 결제 없음) · 기록 · 현금화·송금 불가 |
+| **공식 안내** | 성대 공식 안내 15개 주제 + 지원 프로그램 8개. 질문을 쓰는 동안 맞는 안내를 먼저 보여 준다 (무료, 출처 링크) |
+| **관리자** | 초대 코드로만 켜진다. 한국식 질문 답변(배지) · 대신 채택 · 환불 · 가리기 · 수익 풀(매출 30%) · 데모용 시간 앞당기기 |
 
-그 밖에: 영어/한국어 전환, 학교 선택(성균관대만 활성), 포인트·리워드(팀 제안), 프로젝트 소개 화면(`#/about`).
+개인정보: 이름·학번·국적·연락처·위치를 받지 않는다. 기기마다 무작위 코드(= 복구 코드)를 만들고 서버는 그 해시만 저장한다. 글 속 전화번호·이메일·메신저 ID는 서버에서 `***`로 가린다. 프로필은 기기에만 저장되고 글에는 닉네임·아바타만 붙는다.
 
-## 데이터에 대해
+정의 문서: DEAN `03_PROJECTS/AI융합커뮤니티/PRD_v2.md`.
 
-- **공식 안내(`src/data/kb.js`, `src/data/programs.js`)** — 2026-09-28 성균관대 공식 페이지(oiss.skku.edu, skku.edu/eng, koreansli.skku.edu, hakbu.skku.edu)에서 모았고, 모든 답에 출처를 붙였다.
-  - 은행·휴대폰 안내는 2020년 가을 교환학생 핸드북 기준이라 앱에 "옛 안내서" 표시가 뜬다.
-  - 셔틀버스는 노선만 확인됨. 요금·시간표는 공식 페이지로 안내한다.
-- **사람·채팅·게시글·포인트는 예시 데이터**다. 브라우저 `localStorage`에만 저장되고 서버로 가지 않는다. 포인트 화면 맨 아래 「데모 데이터 초기화」로 되돌린다.
-- **유료 LLM API를 쓰지 않는다.** 헬프봇은 키워드 검색으로 공식 안내를 찾는다 — 비용 0원, 지어낸 답 없음.
+## 구조
+
+| 경로 | 무엇 |
+|---|---|
+| `src/` | React + Vite 화면 (해시 주소) |
+| `api/rpc.js` | Vercel 함수 하나. `POST /api/rpc` `{ action, ... }` + 헤더 `x-device-key` |
+| `server/logic.js` | 포인트·채택·환불·신고 규칙 (모든 계산은 서버에서) |
+| `server/store.js` | 비공개 Vercel Blob(서울 `icn1`)의 JSON 한 개. ETag 조건부 저장으로 동시에 써도 안 꼬인다 |
+| `server/seed.js` | 첫 화면용 예시 글 (앱에 「예시」 표시, 시간 규칙 적용 안 함) |
+
+저장 위치: 운영 `eoullim/db.json` · 미리보기 `eoullim/db-preview.json` · 로컬 `eoullim/db-dev.json` (`.env.local`의 `EOULLIM_DB`).
 
 ## 실행
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # dist/
+npx vercel env pull .env.local   # BLOB_READ_WRITE_TOKEN
+# .env.local에 ADMIN_CODE=… 와 EOULLIM_DB=eoullim/db-dev.json 추가
+npm run dev                      # http://localhost:5173 (로컬에서도 /api/rpc가 돈다)
 ```
 
-배포는 Vercel 프로젝트 `eoullim` (계정 donggeun6669-5211) → `eoullim-skku.vercel.app`. GitHub `main`에 푸시하면 자동 배포된다. (`eoullim.vercel.app`은 다른 사람이 쓰는 주소라 쓰지 않는다.) 저장소가 private이라 GitHub Pages 워크플로(`.github/workflows/deploy.yml`)는 수동 실행으로만 남겨 두었다 — 무료 플랜에서는 동작하지 않는다.
-
-## 디자인
-
-김다미(Wint Yi Kyaw)의 Claude 프로토타입 「Eoullim Mobile Prototype」(2026-09-28)을 바탕으로 했다 —
-색(#5B4DFF · #0F1B2E), 글꼴(Bricolage Grotesque + Noto Sans KR), 하단 5탭, 멘토 카드, 포인트 구조.
+배포: `main`에 푸시하면 Vercel 프로젝트 `eoullim`이 자동 배포 → `eoullim-skku.vercel.app`. 환경 변수 `ADMIN_CODE`(관리자 초대 코드)와 `BLOB_READ_WRITE_TOKEN`이 Vercel에 있다.
+유료 LLM API를 쓰지 않는다.
 
 ## 팀
 
-2gether — 정동근(팀장, 영어영문학과) · 김다미 Wint Yi Kyaw(국어국문학과)
+2gether — 정동근(팀장, 영어영문학과) · 김다미 Wint Yi Kyaw(국어국문학과). 디자인 색·글꼴은 김다미 프로토타입(2026-09-28)을 따른다.

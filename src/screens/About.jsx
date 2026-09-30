@@ -1,73 +1,72 @@
+import { Logo } from '../components/Icon.jsx'
+import { LangToggle, TopBar } from '../components/ui.jsx'
 import { useApp } from '../store.jsx'
-import Icon, { Logo } from '../components/Icon.jsx'
-import { LangToggle } from '../components/ui.jsx'
-
-// Project page for judges and mentors. Text follows our team application (2gether, 2026-09-25).
-function Block({ n, title, children }) {
-  return (
-    <div style={{ background: 'var(--night-2)', borderRadius: 18, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, color: '#8C82FF' }}>{n}</span>
-      <span className="display" style={{ fontSize: 18 }}>{title}</span>
-      <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--night-text)' }}>{children}</div>
-    </div>
-  )
-}
 
 export default function About() {
-  const { tx, go, back } = useApp()
+  const { tx } = useApp()
+  const block = (title, children) => (
+    <section className="about-block">
+      <h2 className="h3">{title}</h2>
+      {children}
+    </section>
+  )
   return (
-    <div className="screen" style={{ padding: '20px 20px 28px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
-        <button className="icon-btn" style={{ background: 'var(--night-2)', color: '#fff' }} aria-label={tx('Back', '뒤로')} onClick={() => back('welcome')}>
-          <Icon name="back" />
-        </button>
-        <LangToggle dark />
+    <div className="screen dark-screen">
+      <TopBar title="" right={<LangToggle dark />} />
+      <div className="row" style={{ gap: 10 }}>
+        <Logo size={40} />
+        <span className="col">
+          <span className="display" style={{ fontSize: 24 }}>Eoullim 어울림</span>
+          <span className="small light">HUSS AI BRIDGE · AI 융합 커뮤니티 · 2gether</span>
+        </span>
       </div>
+      <p className="about-lead">
+        {tx('Instead of relying on one buddy’s goodwill, the whole campus answers.', '버디 한 명의 선의에 기대는 대신, 커뮤니티 전체가 답하게 만들었습니다.')}
+      </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Logo size={44} />
-        <div>
-          <div className="display" style={{ fontSize: 26 }}>Eoullim <span style={{ fontSize: 16, color: 'var(--night-muted)' }}>어울림</span></div>
-          <div style={{ fontSize: 13, color: 'var(--night-muted)' }}>{tx('Campus life helper for international & exchange students', '국내 외국인 유학생·교환학생 캠퍼스 생활 도우미')}</div>
-        </div>
-      </div>
-
-      <Block n="01 · WHY" title={tx('Recruiting is not settling', '유치만큼 중요한 건 정착')}>
-        {tx(
-          'As the school-age population shrinks, universities fill seats by recruiting international and exchange students. But settling in gets little support. Exchange students do not know where to ask even small things, like how to use the library coffee machine.',
-          '학령인구가 줄면서 대학은 외국인 유학생·교환학생 유치로 빈자리를 채우고 있습니다. 그러나 유치만큼 중요한 정착은 뒷받침이 약합니다. 교환학생은 도서관 커피머신 사용법 같은 작은 생활 문제조차 어디에 물어야 할지 모릅니다.',
-        )}
-        <ul style={{ margin: '10px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <li>{tx('Few Korean class options lower motivation (Jeong, 2021)', '선택할 수 있는 한국어 수업이 부족해 학습 의욕을 잃음 (정진현, 2021)')}</li>
-          <li>{tx('Not enough information and promotion for exchange students (Shin, 2011)', '교환학생 관련 정보·홍보 부족 (신태진, 2011)')}</li>
-          <li>{tx('Hands-on cultural exchange raises adjustment and satisfaction (Hyun et al., 2026)', '한국 문화를 직접 체험·교류하는 활동은 적응과 만족도를 높임 (현은령 외, 2026)')}</li>
+      {block(tx('Who it is for', '누구를 위해'), (
+        <ul>
+          <li>{tx('Degree-seeking international students with no buddy — SKKU’s Global Buddy is for freshmen only.', '버디가 없는 학위과정 유학생 — 성대 「글로벌 버디」는 학위과정 신입생만 대상이에요.')}</li>
+          <li>{tx('Exchange students whose buddy is stretched thin — in SG MAPLE one Korean buddy looks after about 4–6 students.', '버디의 도움이 부족한 교환학생 — 「SG MAPLE」은 한국인 버디 1명이 약 4~6명을 맡아요.')}</li>
         </ul>
-      </Block>
+      ))}
 
-      <Block n="02 · WHAT" title={tx('Three layers in one link', '링크 하나에 세 가지')}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span>📚 <b style={{ color: '#fff' }}>{tx('Connect', '연결')}</b>: {tx('introduce the support programs SKKU already runs (OISS, OIR, HI-Club, SG MAPLE, S-LINK, Korean classes, counseling).', '성균관대에 이미 있는 지원 프로그램(외국인유학생지원팀, 국제처, 하이클럽, SG MAPLE, S-LINK, 한국어, 상담)을 소개·연결.')}</span>
-          <span>🤝 <b style={{ color: '#fff' }}>{tx('Community (main)', '커뮤니티 (메인)')}</b>: {tx('senior-junior mentoring, exchange-student community, and Korean friend matching.', '유학생 선후배 멘토링, 교환학생 커뮤니티, 한국 친구 소개.')}</span>
-          <span>🤖 <b style={{ color: '#fff' }}>{tx('AI Help Bot', 'AI 헬프봇')}</b>: {tx('answers from official SKKU guides with the source link, and hands over to a mentor when the guide has no answer.', '성균관대 공식 안내를 근거로 출처 링크와 함께 답하고, 안내에 없으면 멘토에게 넘김.')}</span>
-        </div>
-      </Block>
+      {block(tx('How it works', '어떻게'), (
+        <ol>
+          <li>{tx('Ask with points (100 won = 1 P). The official SKKU guide is shown first — if it answers you, it’s free.', '포인트를 걸고 물어요 (100원 = 1P). 먼저 성대 공식 안내를 보여 줘요 — 거기서 해결되면 무료.')}</li>
+          <li>{tx('Anyone can answer. Korean managers answer Korea-style questions.', '누구나 답할 수 있어요. 한국식 질문은 한국인 관리자가 답해요.')}</li>
+          <li>{tx('The adopted answer gets the points. No answer in 72h → full refund. No adoption in 7 days → a manager decides.', '채택된 답이 포인트를 받아요. 72시간 무답변 → 전액 환불. 7일 미채택 → 관리자가 결정.')}</li>
+          <li>{tx('Community boards: find people to eat, study and travel with; language lounges.', '커뮤니티: 밥·스터디·여행 같이 할 사람 찾기, 언어별 라운지.')}</li>
+        </ol>
+      ))}
 
-      <Block n="03 · HOW" title={tx('Web page, open by link or QR', '링크·QR로 여는 웹페이지')}>
-        {tx(
-          'No install. Each university has its own private community, so students only meet people from their own campus. Mentors earn points for confirmed help.',
-          '설치가 필요 없습니다. 학교마다 따로 커뮤니티가 있어 같은 캠퍼스 학생끼리만 만납니다. 도움이 확인되면 멘토가 포인트를 받습니다.',
-        )}
-      </Block>
+      {block(tx('Privacy by design', '처음부터 개인정보 없이'), (
+        <ul>
+          <li>{tx('No sign-up, no login, no verification.', '가입·로그인·인증 없음.')}</li>
+          <li>{tx('No name, student ID, nationality, phone, email or location. Language lounges instead of nationality boards.', '이름·학번·국적·전화·이메일·위치를 받지 않아요. 국적 대신 언어별 라운지.')}</li>
+          <li>{tx('Phones, emails and messenger IDs in posts are hidden automatically.', '글 속 전화번호·이메일·메신저 ID는 자동으로 가려요.')}</li>
+          <li>{tx('A random code identifies the phone; the server keeps only a one-way hash of it.', '무작위 코드로 기기를 구분하고, 서버는 그 코드의 되돌릴 수 없는 해시만 보관해요.')}</li>
+        </ul>
+      ))}
 
-      <div style={{ fontSize: 13, color: 'var(--night-muted)', lineHeight: 1.6, textAlign: 'center' }}>
-        {tx('Team 2gether: 정동근 (lead), 김다미 Wint Yi Kyaw', '2gether 팀: 정동근(팀장), 김다미(Wint Yi Kyaw)')}
-        <br />
-        HUSS AI BRIDGE · {tx('AI Convergence Community, SKKU', '성균관대 AI 융합 커뮤니티')}
-        <br />
-        <span className="demo-pill" style={{ marginTop: 8 }}>{tx('Prototype: people and chats are sample data', '프로토타입: 사람·채팅은 예시 데이터')}</span>
-      </div>
+      {block(tx('Business model', '수익 구조'), (
+        <ul>
+          <li>{tx('Students buy points. No ads.', '학생이 포인트를 사요. 광고 없음.')}</li>
+          <li>{tx('30% of sales go to Korean managers by work done — a campus job for Korean students.', '매출의 30%를 한국인 관리자가 실적대로 나눠 받아요 — 한국 학생에게는 캠퍼스 일자리.')}</li>
+          <li>{tx('Next: universities buy point bundles for students who have no buddy.', '다음 단계: 학교가 포인트를 묶음으로 사서 버디 없는 유학생에게 나눠 줘요.')}</li>
+          <li>{tx('Points can’t be cashed out or sent between users.', '포인트는 현금화·이용자 간 송금이 안 돼요.')}</li>
+        </ul>
+      ))}
 
-      <button className="btn" onClick={() => go('uni')}>{tx('Try the demo', '데모 써 보기')}</button>
+      {block(tx('Why it matters', '왜 필요한가'), (
+        <p className="small light">
+          {tx('As the school-age population shrinks, universities fill seats with international students. Recruiting them is not enough — they need to settle in. Eoullim turns small daily problems into answers, and answers into community.', '학령인구가 줄면서 대학은 유학생으로 빈자리를 채우고 있어요. 데려오는 것만큼 정착이 중요해요. 어울림은 작은 생활 문제를 답으로, 답을 커뮤니티로 바꿔요.')}
+        </p>
+      ))}
+
+      <p className="small light">
+        {tx('Team 2gether — Jeong Donggeun (English Language & Literature) · Wint Yi Kyaw (Korean Language & Literature). Example posts are marked “Example”. Charging is a demo: no real payment.', '2gether 팀 — 정동근(영어영문학과) · 김다미 Wint Yi Kyaw(국어국문학과). 예시 글에는 「예시」 표시가 있어요. 충전은 데모로, 실제 결제되지 않아요.')}
+      </p>
     </div>
   )
 }

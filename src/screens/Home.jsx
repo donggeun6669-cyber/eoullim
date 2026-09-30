@@ -1,157 +1,175 @@
-import { useState } from 'react'
+import Icon, { Logo } from '../components/Icon.jsx'
+import { Avatar, Coin, KindTag, LangToggle, LevelTag, Loading, Section, TabBar, ExampleTag, ago, won } from '../components/ui.jsx'
 import { useApp } from '../store.jsx'
-import Icon from '../components/Icon.jsx'
-import { Avatar, Section, TabBar, UNIS, UniMark } from '../components/ui.jsx'
-import { FRIENDS, MENTEES, MENTORS, ONLINE, PEOPLE, friendMatch, interest, langLabel, topic } from '../data/people.js'
+import { INTERESTS, LANGS } from '../i18n.js'
 
-export function MentorRow({ id }) {
-  const { go, L, tx } = useApp()
-  const p = PEOPLE[id]
+export function Welcome() {
+  const { start, tx, go } = useApp()
   return (
-    <button className="person-row" onClick={() => go('person', id)}>
-      <Avatar id={id} />
-      <span className="col">
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span className="name">{p.name}</span>
-          <span className="meta">{p.ko}</span>
+    <div className="screen dark-screen">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span className="row" style={{ gap: 8 }}>
+          <Logo />
+          <span className="display" style={{ fontSize: 20 }}>Eoullim</span>
         </span>
-        <span className="meta truncate">
-          {p.kind === 'korean' ? tx('Korean', '한국 학생') : tx('International', '외국인 학생')} · {L(p.major)} · {p.langs.map((l) => l.toUpperCase()).join('·')}
-        </span>
-        <span className="tags" style={{ flexWrap: 'nowrap', overflow: 'hidden' }}>
-          {p.topics.slice(0, 2).map((t) => <span key={t} className="tag">{L(topic(t))}</span>)}
-        </span>
-      </span>
-      <Icon name="chevron" size={20} style={{ color: 'var(--muted)', flexShrink: 0 }} />
-    </button>
-  )
-}
-
-export function MenteeRow({ id }) {
-  const { go, L, offerHelp, tx } = useApp()
-  const p = PEOPLE[id]
-  return (
-    <div className="person-row">
-      <Avatar id={id} />
-      <span className="col">
-        <span className="name">{p.name}</span>
-        <span className="meta">{L(p.status)}</span>
-        <span className="tags">{p.needs.map((t) => <span key={t} className="tag amber">{L(topic(t))}</span>)}</span>
-      </span>
-      <button
-        className="btn amber"
-        style={{ width: 76, height: 56, flexDirection: 'column', gap: 0, fontSize: 13, lineHeight: 1.25, padding: 0, flexShrink: 0 }}
-        onClick={() => { offerHelp(id); go('chat', id) }}
-      >
-        <span>{tx('Offer help', '도와주기')}</span>
-        <span style={{ fontSize: 12 }}>+50 P</span>
+        <LangToggle dark />
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 16 }}>
+        <p className="eyebrow">{tx('For international students without a buddy', '버디가 없는 외국인 유학생을 위해')}</p>
+        <h1 className="h1" style={{ fontSize: 34 }}>
+          {tx('Ask anything.', '무엇이든 물어보세요.')}
+          <br />
+          {tx('Someone on campus will answer.', '캠퍼스 누군가가 답해요.')}
+        </h1>
+        <ul className="welcome-list">
+          <li><span>🪙</span>{tx('Put points on a question — the best answer gets them', '질문에 포인트를 걸면, 채택된 답변이 가져가요')}</li>
+          <li><span>🇰🇷</span>{tx('Korean managers answer Korea-style questions', '한국식 질문은 한국인 관리자가 답해요')}</li>
+          <li><span>🙌</span>{tx('Find people to eat, study and travel with', '밥·스터디·여행 같이 할 사람 찾기')}</li>
+          <li><span>🔒</span>{tx('No sign-up. No name, no email, no phone number', '가입 없음. 이름·이메일·전화번호를 받지 않아요')}</li>
+        </ul>
+      </div>
+      <button className="btn white" onClick={() => start().then(() => go('home')).catch(() => {})}>
+        {tx('Start — 30 points free', '시작하기 — 30포인트 무료')}
       </button>
+      <button className="btn outline-light sm" onClick={() => go('settings')}>
+        {tx('I have a recovery code', '복구 코드가 있어요')}
+      </button>
+      <button className="linkish light" onClick={() => go('about')}>{tx('About this project', '프로젝트 소개')}</button>
     </div>
   )
 }
 
+function ProfileCard() {
+  const { profile, snap, me, tx, L, go } = useApp()
+  if (!snap) {
+    return (
+      <button className="card profile-card empty-profile" onClick={() => go('profile')}>
+        <Avatar snap={null} size={48} />
+        <span className="col">
+          <b>{tx('Make your profile', '프로필 만들기')} <span className="small">({tx('optional', '선택')})</span></b>
+          <span className="small">{tx('Nickname, languages, interests. Saved only on this phone.', '닉네임·언어·관심사. 이 기기에만 저장돼요.')}</span>
+        </span>
+        <Icon name="chevron" size={18} />
+      </button>
+    )
+  }
+  const langs = (profile.langs || []).map((id) => LANGS.find((l) => l[0] === id)?.[1]).filter(Boolean)
+  const ints = (profile.interests || []).map((id) => INTERESTS.find((i) => i[0] === id)).filter(Boolean)
+  return (
+    <button className="card profile-card" onClick={() => go('profile')}>
+      <Avatar snap={snap} size={52} />
+      <span className="col">
+        <span className="row" style={{ gap: 6 }}>
+          <b style={{ fontSize: 17 }}>{snap.nick}</b>
+          {me && <LevelTag level={me.level} />}
+        </span>
+        {profile.bio && <span className="small truncate">{profile.bio}</span>}
+        <span className="tags" style={{ marginTop: 4 }}>
+          {langs.slice(0, 3).map((l) => <span key={l} className="tag gray">{l}</span>)}
+          {ints.slice(0, 2).map((i) => <span key={i[0]} className="tag">{L([i[1], i[2]])}</span>)}
+        </span>
+      </span>
+      <Icon name="chevron" size={18} />
+    </button>
+  )
+}
+
 export default function Home() {
-  const { go, tx, L, state, setLang } = useApp()
-  const [tab, setTab] = useState(state.me.role === 'mentor' ? 'mentee' : 'mentor')
-  const u = UNIS[state.uni]
-  const openReq = state.requests.filter((r) => r.status !== 'done').length
-  const me = state.me.interests.length ? state.me : { ...state.me, interests: ['cafe', 'language', 'food'] }
-  const friends = FRIENDS.map((id) => ({ p: PEOPLE[id], ...friendMatch(PEOPLE[id], me) }))
-    .sort((a, b) => b.score - a.score)
+  const { data, me, tx, go, L } = useApp()
+  if (!data) return <div className="screen"><Loading /><TabBar current="home" /></div>
+
+  const waiting = data.questions
+    .filter((q) => q.status === 'open' && !q.mine && !q.hidden)
+    .sort((a, b) => b.bounty - a.bounty)
     .slice(0, 3)
+  const today = new Date(data.now + 9 * 3600e3).toISOString().slice(0, 10)
+  const meetups = data.posts
+    .filter((p) => p.meetup && p.meetup.date >= today && p.meetup.joined < p.meetup.cap && !p.hidden)
+    .sort((a, b) => a.meetup.date.localeCompare(b.meetup.date))
+    .slice(0, 2)
+  const adminTodo = me?.admin
+    ? data.questions.filter((q) => q.status === 'review' || q.hidden || q.reports > 0 || (q.tag === 'kstyle' && q.status === 'open' && !q.answers.some((a) => a.admin))).length +
+      data.posts.filter((p) => p.hidden || p.reports > 0).length
+    : 0
 
   return (
     <>
       <div className="screen with-tabs">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <UniMark uni={state.uni} />
-            <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>{u.short}</span>
-              <span className="small" style={{ whiteSpace: 'nowrap' }}>{tx('Campus community', '캠퍼스 커뮤니티')}</span>
-            </span>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="row" style={{ gap: 8 }}>
+            <Logo />
+            <span className="display" style={{ fontSize: 20 }}>Eoullim</span>
           </span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="icon-btn" aria-label={tx('한국어로 보기', 'Switch to English')} onClick={() => setLang(state.lang === 'en' ? 'ko' : 'en')}>
-              <Icon name="globe" />
+          <span className="row" style={{ gap: 6 }}>
+            <LangToggle />
+            <button className="icon-btn" aria-label={tx('Settings', '설정')} onClick={() => go('settings')}>
+              <Icon name="settings" />
             </button>
-            <button className="icon-btn" aria-label={tx('Notifications', '알림')} onClick={() => go('requests')}>
-              <Icon name="bell" />
-              {openReq > 0 && <span className="dot-badge" />}
-            </button>
-            <button
-              onClick={() => go('points')}
-              aria-label={tx('My points', '내 포인트')}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, height: 44, padding: '0 12px', whiteSpace: 'nowrap', borderRadius: 22, border: 0, background: 'var(--amber-tint)', color: 'var(--amber-ink)', fontSize: 14, fontWeight: 700 }}
-            >
-              <Icon name="points" size={20} />
-              {state.points.toLocaleString()} P
-            </button>
-          </div>
+          </span>
         </div>
 
-        <div className="seg">
-          <button aria-pressed={tab === 'mentor'} onClick={() => setTab('mentor')}>{tx('Find a mentor', '멘토 찾기')}</button>
-          <button aria-pressed={tab === 'mentee'} onClick={() => setTab('mentee')}>{tx('Find a mentee', '멘티 찾기')}</button>
-        </div>
+        <ProfileCard />
 
-        <Section title={tx('Online now', '지금 접속 중')}>
-          <div className="chips scroll" style={{ gap: 14 }}>
-            {ONLINE.map((id) => (
-              <button key={id} onClick={() => go('person', id)} style={{ width: 56, border: 0, background: 'transparent', padding: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                <Avatar id={id} />
-                <span style={{ fontSize: 12, fontWeight: 500 }}>{PEOPLE[id].name.split(' ')[0]}</span>
-              </button>
-            ))}
-          </div>
-        </Section>
-
-        <div className="hero-card">
-          <div>
-            <div className="display" style={{ fontSize: 18 }}>{tx('Need help?', '도움이 필요해요?')}</div>
-            <div style={{ fontSize: 13, lineHeight: 1.4 }}>{tx('Mentors from your university will reply.', '우리 학교 멘토가 답해 줘요.')}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn sm white" onClick={() => go('request')}>{tx('Ask for help', '도움 요청')}</button>
-            <button className="btn sm outline-light" onClick={() => go('requests')}>{tx('My requests', '내 요청')}</button>
-          </div>
-        </div>
-
-        {tab === 'mentor' ? (
-          <div className="list">{MENTORS.slice(0, 3).map((id) => <MentorRow key={id} id={id} />)}</div>
-        ) : (
-          <div className="list">{MENTEES.map((id) => <MenteeRow key={id} id={id} />)}</div>
-        )}
-
-        <button className="card row" style={{ border: 0, textAlign: 'left', background: 'var(--skku-tint)' }} onClick={() => go('guide')}>
-          <span className="avatar" style={{ width: 44, height: 44, background: 'var(--skku)', color: '#fff' }}><Icon name="book" /></span>
+        <button className="hero-card points-hero" onClick={() => go('points')}>
           <span className="col">
-            <span className="name" style={{ fontSize: 15, color: 'var(--skku)' }}>{tx('Official guide & programs', '공식 안내 · 지원 프로그램')}</span>
-            <span className="meta">{tx('Ask the Help Bot or find SKKU support programs', '헬프봇에게 묻거나 학교 지원 프로그램 찾기')}</span>
+            <span className="small light">{tx('My points', '내 포인트')}</span>
+            <span className="display" style={{ fontSize: 30 }}>{(me?.points ?? 0).toLocaleString()} P</span>
+            <span className="small light">≈ {won(me?.points ?? 0)}</span>
           </span>
-          <Icon name="chevron" size={20} style={{ color: 'var(--skku)' }} />
+          <span className="btn white xs">{tx('Charge', '충전')}</span>
         </button>
 
-        <Section
-          title={tx('Korean friends for you', '추천 한국 친구')}
-          action={<button className="link-out" style={{ border: 0, background: 'none' }} onClick={() => go('find', 'friends')}>{tx('See all', '전체 보기')}</button>}
-        >
-          <div className="chips scroll" style={{ gap: 10 }}>
-            {friends.map(({ p, shared, langs }) => (
-              <button key={p.id} className="card white" onClick={() => go('person', p.id)} style={{ width: 168, flexShrink: 0, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <Avatar id={p.id} size={44} />
-                <span>
-                  <span className="name" style={{ fontSize: 15 }}>{p.name}</span>
-                  <span className="meta" style={{ display: 'block' }}>{L(p.major)}</span>
+        {me?.admin && (
+          <button className="card admin-banner" onClick={() => go('admin')}>
+            <span style={{ fontSize: 22 }}>🇰🇷</span>
+            <span className="col">
+              <b>{tx('Manager mode', '관리자 모드')}</b>
+              <span className="small">{adminTodo ? tx(`${adminTodo} things need you`, `처리할 일 ${adminTodo}건`) : tx('All clear', '처리할 일 없음')}</span>
+            </span>
+            <Icon name="chevron" size={18} />
+          </button>
+        )}
+
+        <div className="shortcuts">
+          <button onClick={() => go('ask')}><span>🙋</span>{tx('Ask', '물어보기')}</button>
+          <button onClick={() => go('write', 'together')}><span>🙌</span>{tx('Find people', '같이 할 사람')}</button>
+          <button onClick={() => go('guide')}><span>📘</span>{tx('Official guide', '공식 안내')}</button>
+        </div>
+
+        <Section title={tx('Waiting for an answer', '답을 기다리는 질문')} action={<button className="linkish" onClick={() => go('solve')}>{tx('All', '전체')}</button>}>
+          {waiting.length === 0 && <p className="empty">{tx('No open questions right now.', '지금 열린 질문이 없어요.')}</p>}
+          <div className="list">
+            {waiting.map((q) => (
+              <button key={q.id} className="card q-mini" onClick={() => go('q', q.id)}>
+                <span className="col">
+                  <span className="tags"><KindTag kind={q.kind} />{q.seed && <ExampleTag />}</span>
+                  <b className="q-title">{q.title}</b>
+                  <span className="small">{q.answers.length ? tx(`${q.answers.length} answers`, `답변 ${q.answers.length}`) : tx('No answers yet', '아직 답변 없음')} · {ago(q.created, data.now, tx)}</span>
                 </span>
-                <span className="tags">
-                  {shared.slice(0, 2).map((i) => <span key={i} className="tag green">{L(interest(i))}</span>)}
-                  {!shared.length && langs[0] && <span className="tag gray">{langLabel(langs[0])}</span>}
-                </span>
+                <Coin n={q.bounty} />
               </button>
             ))}
           </div>
         </Section>
+
+        <Section title={tx('Join a meetup', '모집 중')} action={<button className="linkish" onClick={() => go('community')}>{tx('All', '전체')}</button>}>
+          {meetups.length === 0 && <p className="empty">{tx('No meetups yet — start one!', '아직 모집글이 없어요. 먼저 올려 보세요!')}</p>}
+          <div className="list">
+            {meetups.map((p) => (
+              <button key={p.id} className="card q-mini" onClick={() => go('post', p.id)}>
+                <span className="col">
+                  <b className="q-title">{p.title}</b>
+                  <span className="small">📅 {p.meetup.date} · 📍 {p.meetup.place}</span>
+                </span>
+                <span className="tag green">👥 {p.meetup.joined}/{p.meetup.cap}</span>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <button className="linkish muted" style={{ alignSelf: 'center' }} onClick={() => go('about')}>
+          {tx('About Eoullim', '어울림 소개')} · {L(['Team 2gether', '2gether 팀'])}
+        </button>
       </div>
       <TabBar current="home" />
     </>
