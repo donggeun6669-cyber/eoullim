@@ -143,6 +143,7 @@ export const ERRORS = {
   bad_date: ['Pick a date from today on.', '오늘 이후 날짜를 골라 주세요.'],
   not_admin: ['Mentors only.', '멘토만 할 수 있어요.'],
   no_seat: ['No free Korean-friend seat in those countries yet. Your interests are saved.', '그 나라 그룹에 아직 한국 친구 빈자리가 없어요. 관심 나라는 저장했어요.'],
+  empty_group: ['This group has no students right now.', '지금 학생이 없는 그룹이에요.'],
   kr_student: ['You started as a Korean student.', '한국 학생으로 시작한 기기예요.'],
 }
 // Korean friends: what I can offer to students from the countries I follow.

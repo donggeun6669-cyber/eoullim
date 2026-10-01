@@ -584,7 +584,8 @@ export function apply(db, pid, action, p = {}, env = {}) {
       let g = null
       for (const c of d.kr.countries) {
         g = db.groups
-          .filter((x) => x.school === d.kr.school && x.country === c && (x.friends || []).length < RULES.FRIEND_CAP)
+          // only groups that have students (a group everyone left stays empty until a student joins again)
+          .filter((x) => x.school === d.kr.school && x.country === c && x.members.length > 0 && (x.friends || []).length < RULES.FRIEND_CAP)
           .sort((a, b) => b.members.length - a.members.length || a.n - b.n)[0]
         if (g) break
       }
@@ -625,6 +626,7 @@ export function apply(db, pid, action, p = {}, env = {}) {
       requireAdmin(db, pid)
       const g = findG(db, p.gid)
       if (g.mentor) fail('has_mentor')
+      if (!g.members.length) fail('empty_group')
       if (db.groups.filter((x) => x.mentor === pid).length >= RULES.MENTOR_MAX) fail('mentor_max')
       g.mentor = pid
       g.mentorSnap = cleanSnap(p.snap)

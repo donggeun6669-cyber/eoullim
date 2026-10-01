@@ -127,7 +127,7 @@ export default function Home() {
   const adminTodo = me?.admin
     ? data.questions.filter((q) => q.status === 'review' || q.hidden || q.reports > 0 || (q.tag === 'kstyle' && q.status === 'open' && !q.answers.some((a) => a.admin))).length +
       data.posts.filter((p) => p.hidden || p.reports > 0).length +
-      data.groups.filter((g) => !g.hasMentor).length
+      data.groups.filter((g) => !g.hasMentor && g.members > 0).length
     : 0
 
   return (

@@ -23,7 +23,7 @@ export default function Admin() {
     )
   }
   const qs = data.questions
-  const noMentor = data.groups.filter((g) => !g.hasMentor)
+  const noMentor = data.groups.filter((g) => !g.hasMentor && g.members > 0)
   const mine = data.groups.filter((g) => g.mentoring)
   const myEvents = data.events.filter((e) => e.mine)
   const decide = qs.filter((q) => q.status === 'review')

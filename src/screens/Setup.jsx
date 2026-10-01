@@ -168,7 +168,7 @@ export default function Setup({ id }) {
             <span className="label">2. {tx(`Countries you’re interested in (up to ${max})`, `관심 있는 나라 (최대 ${max}개)`)}</span>
             <div className="country-grid">
               {Object.entries(COUNTRIES).filter(([cid]) => cid !== 'kr' && cid !== 'other').map(([cid, c]) => {
-                const groups = data?.groups?.filter((g) => g.country === cid && g.school === school) || []
+                const groups = data?.groups?.filter((g) => g.country === cid && g.school === school && g.members > 0) || []
                 const seats = groups.reduce((n, g) => n + Math.max(0, g.friendSeats), 0)
                 return (
                   <button key={cid} className="option-card" aria-pressed={likes.includes(cid)} onClick={() => toggleLike(cid)}>
