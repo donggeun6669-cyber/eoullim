@@ -125,6 +125,32 @@ export function AppProvider({ children }) {
     [call],
   )
 
+  // Demo helper: one phone, two people (e.g. an international student and a Korean student).
+  // Keeps the other device's code + profile on this phone and swaps them.
+  const switchDevice = useCallback(async () => {
+    let other = null
+    let otherProfile = null
+    try {
+      other = localStorage.getItem('eoullim-key-other')
+      otherProfile = JSON.parse(localStorage.getItem('eoullim-profile-other') || 'null')
+      localStorage.setItem('eoullim-key-other', currentKey())
+      localStorage.setItem('eoullim-profile-other', JSON.stringify(profile))
+    } catch {
+      /* storage blocked: nothing to swap */
+    }
+    setData(null)
+    setProfileState(otherProfile)
+    write(LS_PROFILE, otherProfile)
+    if (other) {
+      setKey(other)
+      await call('state')
+      return 'swapped'
+    }
+    setKey(newKey())
+    await call('hello')
+    return 'new'
+  }, [call, profile])
+
   const resetDevice = useCallback(async () => {
     setKey(newKey())
     setData(null)
@@ -185,7 +211,7 @@ export function AppProvider({ children }) {
   const myGroup = data?.me?.group || null
   const value = {
     school, myGroup,
-    lang, setLang, autoTr, setAutoTr, tr, tx, L, profile, setProfile, snap, started, start, restore, resetDevice,
+    lang, setLang, autoTr, setAutoTr, tr, tx, L, profile, setProfile, snap, started, start, restore, resetDevice, switchDevice,
     data, me: data?.me, call, refresh, route, go, back, toast, showToast, setToast, errorText,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

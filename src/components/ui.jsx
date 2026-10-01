@@ -100,6 +100,7 @@ const PLACES = {
   settings: ['Settings', '설정'],
   admin: ['Mentor page', '멘토 화면'],
   guide: ['Official guide', '공식 안내'],
+  solve: ['Community board', '커뮤니티 게시판'],
   setup: ['Getting started', '시작하기'],
 }
 export function Belong() {
@@ -126,7 +127,9 @@ export function Belong() {
         </span>
       </button>
       {myGroup ? (
-        <button className="belong-group" onClick={() => go('group')}>{flagOf(myGroup)} {gn(myGroup)}</button>
+        <button className="belong-group" onClick={() => go('group')}>{flagOf(myGroup)} {gn(myGroup)}{myGroup.friend ? ` · ${tx('Korean friend', '한국 친구')}` : ''}</button>
+      ) : me?.kr ? (
+        <button className="belong-group" onClick={() => go('setup', 'kr')}>🇰🇷 {tx('Korean student', '한국 학생')} · {me.kr.countries.map((c) => COUNTRIES[c]?.flag).join('')}</button>
       ) : mentoring.length ? (
         <button className="belong-group" onClick={() => go('group')}>🇰🇷 {tx('Mentor', '멘토')} · {gn(mentoring[0])}</button>
       ) : me?.admin ? (

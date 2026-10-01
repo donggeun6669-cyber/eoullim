@@ -491,3 +491,8 @@ input::placeholder, textarea::placeholder { color: var(--placeholder); }
 .pay-line { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .comment-body { font-size: 14px; }
+
+/* Korean friends (v3.1) */
+.kr-card { display: flex; flex-direction: column; gap: 10px; background: #fff; border: 1.5px solid var(--night); }
+.mentor-note { background: var(--navy-tint); }
+.member.friend > span:last-child { color: #fff; }

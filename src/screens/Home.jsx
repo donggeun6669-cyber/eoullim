@@ -2,7 +2,7 @@ import Icon, { Logo } from '../components/Icon.jsx'
 import { Avatar, Coin, ExampleTag, KindTag, LangToggle, Loading, Section, TabBar, Tr, ago, flagOf, useGroupName } from '../components/ui.jsx'
 import { EventCard } from './Events.jsx'
 import { useApp } from '../store.jsx'
-import { MISSIONS } from '../i18n.js'
+import { COUNTRIES, MISSIONS, OFFERS } from '../i18n.js'
 
 export function Welcome() {
   const { start, tx, go } = useApp()
@@ -24,6 +24,7 @@ export function Welcome() {
         </h1>
         <ul className="welcome-list">
           <li><span>👥</span>{tx('3–4 friends from your country + 1 Korean mentor = your group. Free, all semester.', '같은 나라 친구 3~4명 + 한국인 멘토 1명 = 우리 조. 한 학기 내내, 무료.')}</li>
+          <li><span>🇰🇷</span>{tx('Korean students who love your country join as Korean friends', '내 나라에 관심 있는 한국 학생이 「한국 친구」로 함께해요')}</li>
           <li><span>🎉</span>{tx('Events: saju, a ghost-story night walk, holidays from every country', '이벤트: 사주, 신당동 귀신 투어, 나라별 명절')}</li>
           <li><span>💬</span>{tx('Community: quick help and meetups — points optional', '커뮤니티: 가벼운 도움과 모임 — 포인트는 선택')}</li>
           <li><span>🌐</span>{tx('Write in any language. Everyone reads it in theirs.', '어떤 언어로 써도 각자 자기 언어로 읽어요.')}</li>
@@ -63,12 +64,13 @@ function GroupCard() {
         <span className="row" style={{ gap: 10 }}>
           <span style={{ fontSize: 30 }}>{flagOf(g)}</span>
           <span className="col">
-            <span className="light-text">{g.mentoring ? tx('I mentor', '내가 멘토') : tx('My group', '내 그룹')}</span>
+            <span className="light-text">{g.mentoring ? tx('I mentor', '내가 멘토') : g.friend ? tx('I’m a Korean friend', '한국 친구로 함께하는 그룹') : tx('My group', '내 그룹')}</span>
             <b className="h2">{gn(g)}</b>
           </span>
         </span>
         <span className="avatar-stack">
           {g.members.slice(0, 4).map((m, i) => <Avatar key={i} snap={m.snap} size={28} />)}
+          {g.friends.map((f, i) => <Avatar key={'f' + i} snap={f.snap} size={28} />)}
           {g.hasMentor && <Avatar snap={g.mentor} size={28} />}
         </span>
       </span>
@@ -82,14 +84,41 @@ function GroupCard() {
   )
 }
 
+// What a Korean student sees: the countries they follow, how many others follow them, and where they can help.
+function KoreanCard() {
+  const { data, me, tx, L, go } = useApp()
+  const kr = me?.kr
+  if (!kr) return null
+  const kstyle = data.questions.filter((q) => q.tag === 'kstyle' && q.status === 'open' && !q.mine).length
+  return (
+    <div className="card kr-card">
+      <span className="row" style={{ justifyContent: 'space-between' }}>
+        <b>🇰🇷 {tx('Korean student · countries I follow', '한국 학생 · 내가 관심 있는 나라')}</b>
+        <button className="linkish" onClick={() => go('setup', 'kr')}>{tx('Change', '바꾸기')}</button>
+      </span>
+      <div className="tags">
+        {kr.countries.map((c) => (
+          <span key={c} className="tag gray">{COUNTRIES[c].flag} {L(COUNTRIES[c])} · {tx(`${data.krFans?.[c] || 0} Koreans`, `한국인 ${data.krFans?.[c] || 0}명`)}</span>
+        ))}
+      </div>
+      {kr.offer?.length > 0 && <span className="small">{tx('I can', '함께할 수 있는 것')}: {kr.offer.map((o) => L(OFFERS[o])).join(' · ')}</span>}
+      <div className="row" style={{ gap: 8 }}>
+        <button className="btn soft xs" onClick={() => go('events')}>🎉 {tx('Their holidays & events', '그 나라 명절·이벤트')}</button>
+        <button className="btn line xs" onClick={() => go('community')}>🙋 {tx(`Korea-style questions ${kstyle}`, `한국식 질문 ${kstyle}개`)}</button>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
   const { data, me, tx, go, snap, L } = useApp()
   if (!data) return <div className="screen"><Loading /><TabBar current="home" /></div>
 
   const myG = data.myGroups.find((g) => !g.mentoring)
+  const likes = me?.kr?.countries || (myG ? [myG.country] : [])
   const events = data.events
     .filter((e) => e.status === 'open' && e.joined < e.cap)
-    .sort((a, b) => (myG ? (b.country === myG.country) - (a.country === myG.country) : 0) || a.start - b.start)
+    .sort((a, b) => likes.includes(b.country) - likes.includes(a.country) || a.start - b.start)
     .slice(0, 2)
   const waiting = data.questions
     .filter((q) => q.status === 'open' && !q.mine && !q.hidden)
@@ -121,6 +150,7 @@ export default function Home() {
         </div>
 
         <GroupCard />
+        <KoreanCard />
 
         {me?.admin && (
           <button className="card admin-banner" onClick={() => go('admin')}>

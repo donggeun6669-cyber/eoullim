@@ -57,7 +57,7 @@ export function EventCard({ e }) {
         <span className="small">📅 {fmt(e.date, e.time)} · 📍 <Tr text={e.place} /></span>
         <span className="event-foot">
           <b className="fee">{e.fee ? wonFmt(e.fee) : tx('Free', '무료')}</b>
-          <span className="small">👥 {e.joined}/{e.cap}{e.myGroupCount > 0 ? ` · ${tx(`${e.myGroupCount} from my group`, `우리 조 ${e.myGroupCount}명`)}` : ''}</span>
+          <span className="small">👥 {e.joined}/{e.cap}{e.myGroupCount > 0 ? ` · ${tx(`${e.myGroupCount} from my group`, `우리 조 ${e.myGroupCount}명`)}` : ''}{e.krFans > 0 ? ` · 🇰🇷 ${tx(`${e.krFans} interested`, `관심 ${e.krFans}`)}` : ''}</span>
         </span>
       </span>
     </button>
@@ -76,12 +76,13 @@ export default function Events() {
   const { data, me, tx, L, go } = useApp()
   const [f, setF] = useState('all')
   if (!data) return <div className="screen"><Loading /><TabBar current="events" /></div>
-  const myG = data.myGroups?.find((g) => !g.mentoring)
+  const myG = data.myGroups?.find((g) => !g.mentoring && !g.friend)
+  const krLikes = me?.kr?.countries || []
   // Open events first, soonest first; ended / cancelled ones at the bottom.
   let list = [...data.events].sort((a, b) => (b.status === 'open') - (a.status === 'open') || a.start - b.start)
   if (f === 'mine') list = list.filter((e) => e.iJoined)
   else if (f !== 'all') list = list.filter((e) => e.cat === f)
-  const mine = myG && f === 'all' ? list.filter((e) => e.status === 'open' && e.country === myG.country) : []
+  const mine = f !== 'all' ? [] : myG ? list.filter((e) => e.status === 'open' && e.country === myG.country) : list.filter((e) => e.status === 'open' && krLikes.includes(e.country))
 
   return (
     <>
@@ -97,7 +98,7 @@ export default function Events() {
         </div>
         {mine.length > 0 && (
           <section className="section">
-            <h2 className="h3">{flagOf(myG)} {tx(`From ${COUNTRIES[myG.country].en}`, `우리 나라 행사 · ${COUNTRIES[myG.country].ko}`)}</h2>
+            <h2 className="h3">{myG ? `${flagOf(myG)} ${tx(`From ${COUNTRIES[myG.country].en}`, `우리 나라 행사 · ${COUNTRIES[myG.country].ko}`)}` : `🇰🇷 ${tx('Countries you follow', '내가 관심 있는 나라 행사')}`}</h2>
             <div className="list">{mine.map((e) => <EventCard key={e.id} e={e} />)}</div>
           </section>
         )}
@@ -175,6 +176,7 @@ export function EventDetail({ id }) {
         <span>📍 <Tr text={e.place} /></span>
         <span>💳 <b>{e.fee ? wonFmt(e.fee) : tx('Free', '무료')}</b> {e.fee ? <span className="small">· {tx('per person', '1인')}</span> : null}</span>
         <span>👥 {tx(`${e.joined} of ${e.cap} · runs with ${e.min}+`, `${e.cap}명 중 ${e.joined}명 · 최소 ${e.min}명`)}</span>
+        {e.krFans > 0 && <span>🇰🇷 {tx(`${e.krFans} Korean students follow ${COUNTRIES[e.country]?.en}`, `${COUNTRIES[e.country]?.ko}에 관심 있는 한국 학생 ${e.krFans}명`)}</span>}
         <div className="progress-dark"><span style={{ width: `${Math.min(100, (e.joined / e.cap) * 100)}%` }} /></div>
       </div>
 

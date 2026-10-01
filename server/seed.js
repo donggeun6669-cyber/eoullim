@@ -140,9 +140,11 @@ export function seedDb(now = Date.now()) {
   let mn = 0
   const msg = (snap, body, ageMin, mentor = false) => ({ id: `mseed${String(++mn).padStart(3, '0')}`, author: 'seed-' + snap.nick, snap, body, ageMin, mentor, seed: true })
   const mem = (snap, ageMin) => ({ pid: 'seed-' + snap.nick, snap, seed: true, ageMin })
-  const g = (id, country, n, members, mentor, messages) => ({
-    id, school: 'skku', country, n, seed: true, members, mentor: mentor ? 'seed-' + mentor.nick : null, mentorSnap: mentor, messages, missions: {},
+  const g = (id, country, n, members, mentor, messages, friends = []) => ({
+    id, school: 'skku', country, n, seed: true, members, mentor: mentor ? 'seed-' + mentor.nick : null, mentorSnap: mentor, messages, missions: {}, friends,
   })
+  // Korean friend: a Korean student who likes this country (not a mentor). Example only.
+  const JIWOO = S('Jiwoo', '🌙', 1)
   const BEA = S('Bea', '🍀', 5), CARLO = S('Carlo', '🐧', 4), MARIA = S('Maria', '🌸', 1), JOSE = S('Jose', '🦊', 3)
   const ANA = S('Ana', '🦋', 6), PAOLO = S('Paolo', '🐙', 2)
   const HOA = S('Hoa', '🦋', 1), MINH = S('Minh', '🦉', 4), TRANG = S('Trang', '🍀', 5)
@@ -168,7 +170,8 @@ export function seedDb(now = Date.now()) {
       msg(SEOYEON, '베트남 여성의 날 이벤트 열었어요! 이벤트 탭에서 신청해 주세요 💐', 2000, true),
       msg(LIN, 'Ngày 20/10 mình làm bánh mì cùng nhau nhé! 🥖', 1900),
       msg(HOA, 'Hay quá! Mình sẽ mang hoa 🌷', 1850),
-    ]),
+      { ...msg(JIWOO, '저 베트남어 배우고 있어요! 반미 만들 때 저도 갈게요 🇻🇳 Cảm ơn!', 1700), friend: true },
+    ], [mem(JIWOO, 1750)]),
     g('gseed04', 'cn', 1, [mem(WEI, 16000), mem(LEI, 15000), mem(FANG, 9000)], JIHUN, [
       msg(WEI, '这周末一起去明洞吗？', 700),
       msg(JIHUN, '좋아요! 토요일 2시에 명동역 6번 출구 어때요?', 650, true),
@@ -247,5 +250,5 @@ export function seedDb(now = Date.now()) {
     }),
   ]
 
-  return { v: 3, seededAt: now, devices: {}, questions, posts, groups, events, payments: [], ledger: [], adminLog: [] }
+  return { v: 4, seededAt: now, devices: {}, questions, posts, groups, events, payments: [], ledger: [], adminLog: [] }
 }

@@ -392,6 +392,10 @@ export default {
   "မင်္ဂလာပါ! ဒီအပတ် ဘာလုပ်ကြမလဲ?": {
    "t": "안녕하세요! 이번 주에는 무엇을 할 거예요?",
    "src": "my"
+  },
+  "저 베트남어 배우고 있어요! 반미 만들 때 저도 갈게요 🇻🇳 Cảm ơn!": {
+   "t": "저 베트남어 배우고 있어요! 반미 만들 때 저도 갈게요 🇻🇳 Cảm ơn!",
+   "src": "ko"
   }
  },
  "en": {
@@ -785,6 +789,10 @@ export default {
   },
   "12월 8일은 우즈베키스탄 헌법의 날이에요. 큰 냄비에 플롭(쁠롭)을 만들어 다 같이 나눠 먹어요.": {
    "t": "December 8th is Uzbekistan Constitution Day. Make plop in a large pot and share it with everyone.",
+   "src": "ko"
+  },
+  "저 베트남어 배우고 있어요! 반미 만들 때 저도 갈게요 🇻🇳 Cảm ơn!": {
+   "t": "I'm learning Vietnamese! I'll go too when you make banh mi 🇻🇳 Cảm ơn!",
    "src": "ko"
   }
  }

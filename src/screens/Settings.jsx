@@ -6,7 +6,7 @@ import { useApp } from '../store.jsx'
 import { APP_LANGS } from '../i18n.js'
 
 export default function Settings() {
-  const { tx, lang, setLang, autoTr, setAutoTr, me, started, restore, resetDevice, call, showToast, errorText, go } = useApp()
+  const { tx, lang, setLang, autoTr, setAutoTr, switchDevice, profile, me, started, restore, resetDevice, call, showToast, errorText, go } = useApp()
   const [reveal, setReveal] = useState(false)
   const [code, setCode] = useState('')
   const [adminCode, setAdminCode] = useState('')
@@ -108,6 +108,35 @@ export default function Settings() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {started && (
+        <div className="card">
+          <b>🔁 {tx('Demo: switch person', '데모: 다른 사람 화면으로 보기')}</b>
+          <span className="small">{tx('Show the international-student view and the Korean-student view on one phone. Both codes stay on this phone.', '한 휴대폰에서 외국인 학생 화면과 한국 학생 화면을 번갈아 보여 줄 때 써요. 두 기기 코드 모두 이 휴대폰에 남아요.')}</span>
+          <button
+            className="btn soft xs"
+            style={{ marginTop: 8 }}
+            onClick={async () => {
+              const r = await switchDevice().catch(() => null)
+              if (r === 'new') go('setup', profile?.who === 'kr' || me?.kr ? 'intl' : 'kr')
+              else if (r) {
+                showToast(tx('Switched', '전환했어요'))
+                go('home')
+              }
+            }}
+          >
+            {(() => {
+              let has = false
+              try {
+                has = !!localStorage.getItem('eoullim-key-other')
+              } catch {
+                /* ignore */
+              }
+              return has ? tx('Switch to the other person', '다른 사람 화면으로 전환') : me?.kr ? tx('Start a second person: international student', '두 번째 사람으로 시작: 외국인 유학생') : tx('Start a second person: Korean student', '두 번째 사람으로 시작: 한국 학생')
+            })()}
+          </button>
         </div>
       )}
 

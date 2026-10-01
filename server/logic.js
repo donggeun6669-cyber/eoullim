@@ -18,6 +18,8 @@ export const RULES = {
   // groups (free)
   GROUP_CAP: 4, // students per group (+ 1 Korean mentor)
   GROUP_START: 3, // a group "starts" at 3 students
+  FRIEND_CAP: 2, // Korean friends per group (besides the mentor) — 2026-10-01 mentoring feedback
+  KR_INTERESTS: 3, // countries a Korean student can follow
   MENTOR_MAX: 3, // groups one mentor can look after
   // events (main revenue)
   EVENT_RATE: 0.15, // Eoullim keeps 15% of each fee; 85% is the host's budget to run the event
@@ -105,7 +107,7 @@ export function emptyDb(now = Date.now()) {
 }
 // v2 → v3: add groups, events and payments (and the new example posts) to a live db without touching user data.
 export function migrate(db) {
-  if ((db.v || 0) >= 3) return db
+  if ((db.v || 0) >= 3) return migrate4(db)
   const s = seedDb(db.seededAt || Date.now())
   db.groups = db.groups || s.groups
   db.events = db.events || s.events
@@ -113,6 +115,26 @@ export function migrate(db) {
   for (const q of s.questions) if (!db.questions.some((x) => x.id === q.id)) db.questions.push(q)
   for (const p of s.posts) if (!db.posts.some((x) => x.id === p.id)) db.posts.push(p)
   db.v = 3
+  return migrate4(db)
+}
+// v3 → v4: Korean friends. Every group gets an empty friends list; the Vietnam example group gets one example friend.
+function migrate4(db) {
+  if ((db.v || 0) >= 4) return db
+  const s = seedDb(db.seededAt || Date.now())
+  for (const g of db.groups) {
+    g.friends = g.friends || []
+    const sg = s.groups.find((x) => x.id === g.id)
+    if (sg?.friends?.length && !g.friends.length) {
+      g.friends.push(...sg.friends)
+      const extra = sg.messages.filter((m) => !g.messages.some((x) => x.id === m.id))
+      for (const m of extra) {
+        // keep example messages in time order
+        const i = g.messages.findIndex((x) => x.seed && x.ageMin != null && x.ageMin < m.ageMin)
+        g.messages.splice(i < 0 ? g.messages.length : i, 0, m)
+      }
+    }
+  }
+  db.v = 4
   return db
 }
 function device(db, pid) {
@@ -138,7 +160,9 @@ function move(db, fromPid, toPid, amount, reason, ref) {
 }
 const findG = (db, id) => (db.groups || []).find((g) => g.id === id) || fail('not_found', 404)
 const findE = (db, id) => (db.events || []).find((e) => e.id === id) || fail('not_found', 404)
-const findMyGroup = (db, pid) => (db.groups || []).find((g) => g.members.some((m) => m.pid === pid))
+const inGroup = (g, pid) => g.members.some((m) => m.pid === pid) || (g.friends || []).some((m) => m.pid === pid)
+const findMyGroup = (db, pid) => (db.groups || []).find((g) => inGroup(g, pid))
+const OFFERS = ['language', 'life', 'hangout']
 function sysMsg(g, type, snap) {
   g.messages.push({ id: newId('m'), system: type, snap: snap || null, body: '', created: Date.now() })
 }
@@ -246,26 +270,34 @@ export function view(db, pid, now = Date.now()) {
   // ----- groups: everyone sees the directory; only members and the mentor see the chat -----
   const groups = db.groups || []
   const groupOfPid = {}
-  for (const g of groups) for (const m of g.members) groupOfPid[m.pid] = g
+  for (const g of groups) for (const m of [...g.members, ...(g.friends || [])]) groupOfPid[m.pid] = g
   const myGroup = groupOfPid[pid] || null
+  const amFriend = !!myGroup && (myGroup.friends || []).some((m) => m.pid === pid)
+  // How many Korean students follow each country (real devices + example friends).
+  const krFans = {}
+  for (const d of Object.values(db.devices)) for (const c of d.kr?.countries || []) krFans[c] = (krFans[c] || 0) + 1
+  for (const g of groups) for (const f of g.friends || []) if (f.seed) krFans[g.country] = (krFans[g.country] || 0) + 1
   const gname = (g) => ({ id: g.id, school: g.school, country: g.country, n: g.n })
   const week = weekOf(now)
   const groupDir = groups.map((g) => ({
     ...gname(g), members: g.members.length, mentor: g.mentorSnap || (g.mentor ? {} : null),
     hasMentor: !!g.mentor, mine: g === myGroup, mentoring: g.mentor === pid,
+    friends: (g.friends || []).length, friendSeats: RULES.FRIEND_CAP - (g.friends || []).length,
   }))
   const myGroups = groups
     .filter((g) => g === myGroup || (g.mentor && g.mentor === pid))
     .map((g) => ({
       ...gname(g),
       mentoring: g.mentor === pid,
+      friend: g === myGroup && amFriend,
+      friends: (g.friends || []).map((m) => ({ snap: m.snap, me: m.pid === pid })),
       mentor: g.mentor ? g.mentorSnap || null : null,
       hasMentor: !!g.mentor,
       members: g.members.map((m) => ({ snap: m.snap, me: m.pid === pid, joined: m.seed ? now - (m.ageMin || 0) * 60e3 : m.joined })),
       missionDone: !!g.missions?.[week],
       missionBy: g.missions?.[week]?.snap || null,
       messages: g.messages.slice(-120).map((m) => ({
-        id: m.id, body: m.body, snap: m.snap, mentor: !!m.mentor, system: m.system || null,
+        id: m.id, body: m.body, snap: m.snap, mentor: !!m.mentor, friend: !!m.friend, system: m.system || null,
         created: at(m), mine: m.author === pid, seed: !!m.seed,
       })),
     }))
@@ -289,6 +321,7 @@ export function view(db, pid, now = Date.now()) {
       people: e.joined.slice(0, 10).map((j) => j.snap),
       groups: Object.values(gs).sort((a, b) => b.count - a.count),
       myGroupCount: myGroup ? e.joined.filter((j) => groupOfPid[j.pid] === myGroup).length : 0,
+      krFans: e.country && e.country !== 'kr' ? krFans[e.country] || 0 : 0,
       start: eventStart(e),
     }
   })
@@ -297,7 +330,8 @@ export function view(db, pid, now = Date.now()) {
     now,
     week,
     rules: RULES,
-    me: me ? { pid, points: me.points, admin: isAdmin, adopted: counts[pid] || 0, level: lv(pid), group: myGroup ? gname(myGroup) : null } : null,
+    me: me ? { pid, points: me.points, admin: isAdmin, adopted: counts[pid] || 0, level: lv(pid), group: myGroup ? gname(myGroup) : null, kr: me.kr || null, friend: amFriend } : null,
+    krFans,
     questions,
     posts,
     groups: groupDir,
@@ -508,6 +542,7 @@ export function apply(db, pid, action, p = {}, env = {}) {
     case 'joinGroup': {
       if (findMyGroup(db, pid)) fail('in_group')
       if (device(db, pid).admin) fail('mentor_no_join')
+      if (device(db, pid).kr) fail('kr_student')
       const school = SCHOOLS.includes(p.school) ? p.school : fail('bad_school')
       const country = COUNTRIES.includes(p.country) ? p.country : fail('bad_country')
       const same = db.groups.filter((g) => g.school === school && g.country === country).sort((a, b) => a.n - b.n)
@@ -524,26 +559,59 @@ export function apply(db, pid, action, p = {}, env = {}) {
     }
     case 'leaveGroup': {
       const g = findMyGroup(db, pid) || fail('no_group')
-      const m = g.members.find((x) => x.pid === pid)
+      const m = [...g.members, ...(g.friends || [])].find((x) => x.pid === pid)
       g.members = g.members.filter((x) => x !== m)
+      g.friends = (g.friends || []).filter((x) => x !== m)
       sysMsg(g, 'leave', m.snap)
       return
+    }
+    // ----- Korean friends (free): Korean students who are interested in a country -----
+    // Not 1:1 matching: they join a group from a country they follow, up to 2 per group.
+    case 'krSet': {
+      const d = device(db, pid)
+      if (d.admin) fail('mentor_no_join')
+      const countries = [...new Set((Array.isArray(p.countries) ? p.countries : []).filter((c) => COUNTRIES.includes(c) && c !== 'other'))].slice(0, RULES.KR_INTERESTS)
+      if (!countries.length) fail('bad_country')
+      if (findMyGroup(db, pid) && !findMyGroup(db, pid).friends?.some((m) => m.pid === pid)) fail('in_group') // a foreign student can't switch
+      d.kr = { countries, offer: (Array.isArray(p.offer) ? p.offer : []).filter((o) => OFFERS.includes(o)), school: SCHOOLS.includes(p.school) ? p.school : 'skku' }
+      return
+    }
+    case 'krJoin': {
+      const d = device(db, pid)
+      if (!d.kr) fail('bad_country')
+      if (findMyGroup(db, pid)) fail('in_group')
+      // A group from my countries (in my order of interest) with a free friend seat; groups that started first.
+      let g = null
+      for (const c of d.kr.countries) {
+        g = db.groups
+          .filter((x) => x.school === d.kr.school && x.country === c && (x.friends || []).length < RULES.FRIEND_CAP)
+          .sort((a, b) => b.members.length - a.members.length || a.n - b.n)[0]
+        if (g) break
+      }
+      if (!g) fail('no_seat')
+      const snap = cleanSnap(p.snap)
+      g.friends = g.friends || []
+      g.friends.push({ pid, snap, joined: now })
+      sysMsg(g, 'friend', snap)
+      return { id: g.id }
     }
     case 'groupMsg': {
       const g = findG(db, p.gid)
       const member = g.members.find((x) => x.pid === pid)
+      const friend = (g.friends || []).find((x) => x.pid === pid)
       const isMentor = g.mentor === pid
-      if (!member && !isMentor) fail('not_member', 403)
+      if (!member && !friend && !isMentor) fail('not_member', 403)
       const snap = cleanSnap(p.snap)
       if (member && snap) member.snap = snap
+      if (friend && snap) friend.snap = snap
       if (isMentor && snap) g.mentorSnap = snap
-      g.messages.push({ id: newId('m'), author: pid, snap, mentor: isMentor, body: maskText(clean(p.body, LIMITS.msg)).text, created: now })
+      g.messages.push({ id: newId('m'), author: pid, snap, mentor: isMentor, friend: !!friend, body: maskText(clean(p.body, LIMITS.msg)).text, created: now })
       if (g.messages.length > 400) g.messages.splice(0, g.messages.length - 400)
       return
     }
     case 'mission': {
       const g = findG(db, p.gid)
-      if (!g.members.some((x) => x.pid === pid) && g.mentor !== pid) fail('not_member', 403)
+      if (!inGroup(g, pid) && g.mentor !== pid) fail('not_member', 403)
       const w = weekOf(now)
       g.missions = g.missions || {}
       if (!g.missions[w]) {

@@ -28,6 +28,7 @@ export default function About() {
         <ul>
           <li>{tx('Your group: 3–4 students from the same country + 1 Korean mentor, all semester. Free, always.', '우리 조: 같은 나라 학생 3~4명 + 한국인 멘토 1명이 한 학기 내내 함께. 언제나 무료.')}</li>
           <li>{tx('Weekly group missions turn strangers into friends: lunch together, a song from home, a walk with the mentor.', '매주 그룹 미션으로 서먹함을 깨요: 학식 같이 먹기, 내 나라 노래 추천, 멘토와 동네 산책.')}</li>
+          <li>{tx('Korean students who are interested in a country join its groups as “Korean friends” (up to 2 per group) — in groups, not 1:1. Free.', '특정 나라에 관심 있는 한국 학생은 그 나라 그룹의 「한국 친구」로 들어와요 (그룹당 2명까지). 1:1이 아니라 그룹으로. 무료.')}</li>
           <li>{tx('Every screen shows where you belong — your school, the board you’re on and your group.', '모든 화면에 내 소속이 보여요 — 학교, 지금 있는 게시판, 우리 조.')}</li>
           <li>{tx('Write in any language. Boards and group chat are translated live.', '어떤 언어로 써도 돼요. 게시판과 그룹 채팅은 실시간 번역.')}</li>
         </ul>

@@ -14,6 +14,7 @@ function SystemLine({ m }) {
     mission: tx(`✅ This week’s mission is done${who ? ` (${who})` : ''}!`, `✅ 이번 주 미션 완료${who ? ` (${who})` : ''}!`),
     mentor: tx(`🇰🇷 ${who || 'A Korean mentor'} is now your mentor`, `🇰🇷 ${who || '한국인 멘토'}님이 멘토가 됐어요`),
     mentorLeft: tx('The mentor left. A new mentor will join soon.', '멘토가 바뀌어요. 곧 새 멘토가 와요.'),
+    friend: tx(`🇰🇷 ${who || 'A Korean student'} joined as a Korean friend 👋`, `🇰🇷 ${who || '한국 학생'}님이 한국 친구로 들어왔어요 👋`),
   }[m.system]
   return <div className="system-note">{text}</div>
 }
@@ -29,6 +30,7 @@ function Bubble({ m, now }) {
           <span className="bubble-name">
             {m.snap?.nick || tx('Member', '멤버')}
             {m.mentor && <span className="tag manager">🇰🇷 {tx('Mentor', '멘토')}</span>}
+            {m.friend && <span className="tag gray">🇰🇷 {tx('Korean friend', '한국 친구')}</span>}
           </span>
         )}
         <div className={'bubble' + (m.mentor ? ' mentor' : '')}>
@@ -67,6 +69,9 @@ export default function Group() {
       <>
         <div className="screen with-tabs">
           <h1 className="h1">{tx('My group', '내 그룹')}</h1>
+          {me?.kr && (
+            <p className="note card">🇰🇷 {tx('No free Korean-friend seat in your countries yet. You still get their events and lounges.', '관심 나라 그룹에 아직 한국 친구 빈자리가 없어요. 그 나라 이벤트와 라운지는 계속 추천해 드려요.')}</p>
+          )}
           <div className="card group-hero">
             <span style={{ fontSize: 34 }}>👥</span>
             <b className="h2">{tx('Meet your people in Korea', '한국에서 함께할 우리 조')}</b>
@@ -74,7 +79,7 @@ export default function Group() {
             {me?.admin ? (
               <button className="btn white sm" onClick={() => go('admin')}>🇰🇷 {tx('Take a group as mentor', '멘토로 그룹 맡기')}</button>
             ) : (
-              <button className="btn accent sm" onClick={() => go('setup')}>{tx('Find my group', '내 그룹 찾기')}</button>
+              <button className="btn accent sm" onClick={() => go('setup', me?.kr ? 'kr' : undefined)}>{me?.kr ? tx('Try again / change countries', '다시 찾기 · 관심 나라 바꾸기') : tx('Find my group', '내 그룹 찾기')}</button>
             )}
           </div>
           <ul className="steps">
@@ -126,7 +131,7 @@ export default function Group() {
               <span className="col">
                 <b className="h2">{gn(g)}</b>
                 <span className="light-text">
-                  {g.mentoring ? tx('You are the mentor', '내가 멘토인 그룹') : forming ? tx(`Waiting for members · starts at ${data.rules.GROUP_START}`, `멤버 모으는 중 · ${data.rules.GROUP_START}명이 되면 시작`) : tx('Together this semester', '이번 학기 함께해요')}
+                  {g.mentoring ? tx('You are the mentor', '내가 멘토인 그룹') : g.friend ? tx('You are a Korean friend here', '한국 친구로 함께하는 그룹') : forming ? tx(`Waiting for members · starts at ${data.rules.GROUP_START}`, `멤버 모으는 중 · ${data.rules.GROUP_START}명이 되면 시작`) : tx('Together this semester', '이번 학기 함께해요')}
                 </span>
               </span>
             </span>
@@ -141,6 +146,12 @@ export default function Group() {
             ))}
             {Array.from({ length: Math.max(0, cap - g.members.length) }, (_, i) => (
               <span key={'e' + i} className="member empty"><span className="avatar-empty">+</span><span>{tx('Open', '빈자리')}</span></span>
+            ))}
+            {g.friends.map((f, i) => (
+              <span key={'f' + i} className="member friend">
+                <Avatar snap={f.snap} size={40} />
+                <span>{f.me ? tx('Me', '나') : `🇰🇷 ${f.snap?.nick || tx('Friend', '친구')}`}</span>
+              </span>
             ))}
             <span className="member mentor">
               {g.hasMentor ? <Avatar snap={g.mentor} size={40} /> : <span className="avatar-empty">🇰🇷</span>}

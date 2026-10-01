@@ -142,6 +142,14 @@ export const ERRORS = {
   bad_fee: ['Fee must be 0–200,000 won, in 100-won steps.', '참가비는 0~200,000원, 100원 단위예요.'],
   bad_date: ['Pick a date from today on.', '오늘 이후 날짜를 골라 주세요.'],
   not_admin: ['Mentors only.', '멘토만 할 수 있어요.'],
+  no_seat: ['No free Korean-friend seat in those countries yet. Your interests are saved.', '그 나라 그룹에 아직 한국 친구 빈자리가 없어요. 관심 나라는 저장했어요.'],
+  kr_student: ['You started as a Korean student.', '한국 학생으로 시작한 기기예요.'],
+}
+// Korean friends: what I can offer to students from the countries I follow.
+export const OFFERS = {
+  language: ['Language exchange', '언어 교환'],
+  life: ['Help with life in Korea', '한국 생활 도와주기'],
+  hangout: ['Hang out, eat, explore', '같이 놀기·밥·구경'],
 }
 export const LANGS = [
   ['ko', '한국어'], ['en', 'English'], ['zh', '中文'], ['vi', 'Tiếng Việt'], ['ja', '日本語'],
