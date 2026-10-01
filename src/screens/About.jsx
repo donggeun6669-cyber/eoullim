@@ -21,51 +21,51 @@ export default function About() {
         </span>
       </div>
       <p className="about-lead">
-        {tx('Where buddy programs don’t reach, the whole campus answers.', '버디 프로그램이 닿지 않는 곳에서, 캠퍼스 전체가 답합니다.')}
+        {tx('A group that stays with you in Korea — and events that bring groups together.', '한국에서 끝까지 함께하는 그룹, 그리고 그룹을 잇는 이벤트.')}
       </p>
 
-      {block(tx('Who it is for', '누구를 위해'), (
+      {block(tx('Main value: rapport, for free', '핵심 가치: 라포 형성 (무료)'), (
         <ul>
-          <li>{tx('Degree-seeking international students in the buddy blind spot — SKKU’s Global Buddy is for freshmen only, so 2nd-years and up, transfer and graduate students have no program.', '버디 프로그램의 사각지대에 있는 학위과정 유학생 — 성대 「글로벌 버디」는 신입생만 대상이라 2학년 이상·편입생·대학원생은 들어갈 프로그램이 없어요.')}</li>
-          <li>{tx('Students who find a 1:1 buddy too much — they just want to ask when they need to. (Buddy programs like SG MAPLE work well for exchange students; Eoullim fills the gap around them.)', '1:1 버디가 부담스러운 학생 — 필요할 때만 가볍게 묻고 싶은 사람. (SG MAPLE 같은 버디 프로그램은 교환학생에게 잘 작동해요. 어울림은 그 바깥을 채워요.)')}</li>
+          <li>{tx('Your group: 3–4 students from the same country + 1 Korean mentor, all semester. Free, always.', '우리 조: 같은 나라 학생 3~4명 + 한국인 멘토 1명이 한 학기 내내 함께. 언제나 무료.')}</li>
+          <li>{tx('Weekly group missions turn strangers into friends: lunch together, a song from home, a walk with the mentor.', '매주 그룹 미션으로 서먹함을 깨요: 학식 같이 먹기, 내 나라 노래 추천, 멘토와 동네 산책.')}</li>
+          <li>{tx('Every screen shows where you belong — your school, the board you’re on and your group.', '모든 화면에 내 소속이 보여요 — 학교, 지금 있는 게시판, 우리 조.')}</li>
+          <li>{tx('Write in any language. Boards and group chat are translated live.', '어떤 언어로 써도 돼요. 게시판과 그룹 채팅은 실시간 번역.')}</li>
         </ul>
       ))}
 
-      {block(tx('How it works', '어떻게'), (
-        <ol>
-          <li>{tx('Ask with points (100 won = 1 P). The official SKKU guide is shown first — if it answers you, it’s free.', '포인트를 걸고 물어요 (100원 = 1P). 먼저 성대 공식 안내를 보여 줘요 — 거기서 해결되면 무료.')}</li>
-          <li>{tx('Anyone can answer. Korean managers answer Korea-style questions.', '누구나 답할 수 있어요. 한국식 질문은 한국인 관리자가 답해요.')}</li>
-          <li>{tx('The adopted answer gets the points. No answer in 72h → full refund. No adoption in 7 days → a manager decides.', '채택된 답이 포인트를 받아요. 72시간 무답변 → 전액 환불. 7일 미채택 → 관리자가 결정.')}</li>
-          <li>{tx('Community boards: find people to eat, study and travel with; language lounges.', '커뮤니티: 밥·스터디·여행 같이 할 사람 찾기, 언어별 라운지.')}</li>
-        </ol>
+      {block(tx('Events: how Eoullim earns', '이벤트: 어울림의 수익'), (
+        <ul>
+          <li>{tx('Only in Korea: saju café, Sindang-dong ghost-story walk, hanbok palace walk.', '한국에서만: 사주 카페, 신당동 귀신 골목 투어, 한복 고궁 산책.')}</li>
+          <li>{tx('Holidays by country: Vietnamese Women’s Day, Undas, Hangeul Day… the country’s groups help host.', '나라별 명절: 베트남 여성의 날, 필리핀 Undas, 한글날… 그 나라 조가 같이 준비해요.')}</li>
+          <li>{tx('Group vs group: sports day, quiz night.', '그룹 대항: 체육대회, 퀴즈 나이트.')}</li>
+          <li>{tx('Participants pay a fee. Eoullim keeps 15%; the rest is the host’s budget for the event.', '참가비를 받고, 어울림이 15%를 수수료로 가져가요. 나머지는 진행 예산.')}</li>
+        </ul>
+      ))}
+
+      {block(tx('Community + points (second)', '커뮤니티 + 포인트 (보조 수익)'), (
+        <ul>
+          <li>{tx('Quick help, everyday questions, meetups for today — one board.', '가벼운 도움, 일상 질문, 오늘의 모임 — 게시판 하나.')}</li>
+          <li>{tx('Points are optional: put them on a question for faster answers (100 won = 1 P). No answer in 72h → refund.', '포인트는 선택: 질문에 걸면 답이 빨라져요 (100원 = 1P). 72시간 무답변 → 환불.')}</li>
+          <li>{tx('30% of Eoullim’s revenue goes to Korean mentors by work done — a campus job for Korean students.', '어울림 수익의 30%는 한국인 멘토가 실적대로 나눠 받아요 — 한국 학생에게는 캠퍼스 일자리.')}</li>
+        </ul>
       ))}
 
       {block(tx('Privacy by design', '처음부터 개인정보 없이'), (
         <ul>
-          <li>{tx('No sign-up, no login, no verification.', '가입·로그인·인증 없음.')}</li>
-          <li>{tx('No name, student ID, nationality, phone, email or location. Language lounges instead of nationality boards.', '이름·학번·국적·전화·이메일·위치를 받지 않아요. 국적 대신 언어별 라운지.')}</li>
-          <li>{tx('Phones, emails and messenger IDs in posts are hidden automatically.', '글 속 전화번호·이메일·메신저 ID는 자동으로 가려요.')}</li>
-          <li>{tx('A random code identifies the phone; the server keeps only a one-way hash of it.', '무작위 코드로 기기를 구분하고, 서버는 그 코드의 되돌릴 수 없는 해시만 보관해요.')}</li>
-        </ul>
-      ))}
-
-      {block(tx('Business model', '수익 구조'), (
-        <ul>
-          <li>{tx('Students buy points. No ads.', '학생이 포인트를 사요. 광고 없음.')}</li>
-          <li>{tx('30% of sales go to Korean managers by work done — a campus job for Korean students.', '매출의 30%를 한국인 관리자가 실적대로 나눠 받아요 — 한국 학생에게는 캠퍼스 일자리.')}</li>
-          <li>{tx('Next: universities buy point bundles for students who have no buddy.', '다음 단계: 학교가 포인트를 묶음으로 사서 버디 없는 유학생에게 나눠 줘요.')}</li>
-          <li>{tx('Points can’t be cashed out or sent between users.', '포인트는 현금화·이용자 간 송금이 안 돼요.')}</li>
+          <li>{tx('No sign-up, no login. No name, student ID, phone or email.', '가입·로그인 없음. 이름·학번·전화·이메일을 받지 않아요.')}</li>
+          <li>{tx('Your country is used only to make your group — never shown on posts.', '나라는 그룹을 만드는 데만 쓰고, 글에는 보이지 않아요.')}</li>
+          <li>{tx('Phones, emails and messenger IDs in posts and chat are hidden automatically.', '글과 채팅 속 전화번호·이메일·메신저 ID는 자동으로 가려요.')}</li>
         </ul>
       ))}
 
       {block(tx('Why it matters', '왜 필요한가'), (
         <p className="small light">
-          {tx('As the school-age population shrinks, universities fill seats with international students. Recruiting them is not enough — they need to settle in. Eoullim turns small daily problems into answers, and answers into community.', '학령인구가 줄면서 대학은 유학생으로 빈자리를 채우고 있어요. 데려오는 것만큼 정착이 중요해요. 어울림은 작은 생활 문제를 답으로, 답을 커뮤니티로 바꿔요.')}
+          {tx('As the school-age population shrinks, universities fill seats with international students. Recruiting them is not enough — they need to settle in. Eoullim gives every student a group from day one.', '학령인구가 줄면서 대학은 유학생으로 빈자리를 채우고 있어요. 데려오는 것만큼 정착이 중요해요. 어울림은 첫날부터 모두에게 「우리 조」를 줘요.')}
         </p>
       ))}
 
       <p className="small light">
-        {tx('Team 2gether — Jeong Donggeun (English Language & Literature) · Wint Yi Kyaw (Korean Language & Literature). Example posts are marked “Example”. Charging is a demo: no real payment.', '2gether 팀 — 정동근(영어영문학과) · 김다미 Wint Yi Kyaw(국어국문학과). 예시 글에는 「예시」 표시가 있어요. 충전은 데모로, 실제 결제되지 않아요.')}
+        {tx('Team 2gether — Jeong Donggeun (English Language & Literature) · Wint Yi Kyaw (Korean Language & Literature). Example posts are marked “Example”. Payments are a demo: no real money moves.', '2gether 팀 — 정동근(영어영문학과) · 김다미 Wint Yi Kyaw(국어국문학과). 예시 글에는 「예시」 표시가 있어요. 결제·충전은 데모로, 실제 돈이 오가지 않아요.')}
       </p>
     </div>
   )

@@ -3,9 +3,10 @@ import Icon from '../components/Icon.jsx'
 import { TopBar } from '../components/ui.jsx'
 import { ApiError, currentKey, normalizeKey } from '../lib/api.js'
 import { useApp } from '../store.jsx'
+import { APP_LANGS } from '../i18n.js'
 
 export default function Settings() {
-  const { tx, lang, setLang, me, started, restore, resetDevice, call, showToast, errorText, go } = useApp()
+  const { tx, lang, setLang, autoTr, setAutoTr, me, started, restore, resetDevice, call, showToast, errorText, go } = useApp()
   const [reveal, setReveal] = useState(false)
   const [code, setCode] = useState('')
   const [adminCode, setAdminCode] = useState('')
@@ -31,12 +32,21 @@ export default function Settings() {
       <TopBar title={tx('Settings', '설정')} />
 
       <div className="field">
-        <span className="label">{tx('Language', '언어')}</span>
-        <div className="seg sm">
-          <button aria-pressed={lang === 'en'} onClick={() => setLang('en')}>English</button>
-          <button aria-pressed={lang === 'ko'} onClick={() => setLang('ko')}>한국어</button>
+        <span className="label">🌐 {tx('Language', '언어')} · Language</span>
+        <div className="lang-grid">
+          {APP_LANGS.map((l) => (
+            <button key={l.id} className="chip" aria-pressed={lang === l.id} onClick={() => setLang(l.id)}>{l.label}</button>
+          ))}
         </div>
+        <span className="small">{tx('English and Korean are written by us; other languages are machine-translated.', '영어·한국어는 직접 쓴 글이고, 다른 언어는 기계 번역이에요.')}</span>
       </div>
+      <label className="switch-row">
+        <span>
+          <b>{tx('Translate posts and chat live', '게시판·채팅 실시간 번역')}</b>
+          <span className="small">{tx('Posts, comments, events and group chat appear in your language. Tap “show original” anytime.', '글·댓글·이벤트·그룹 채팅이 내 언어로 보여요. 언제든 「원문 보기」를 누를 수 있어요.')}</span>
+        </span>
+        <input type="checkbox" className="switch" checked={autoTr} onChange={(e) => setAutoTr(e.target.checked)} />
+      </label>
 
       {started && key && (
         <div className="card key-card">
@@ -64,18 +74,18 @@ export default function Settings() {
 
       {started && (
         <div className="card">
-          <b>🇰🇷 {tx('Korean manager', '한국인 관리자')}</b>
+          <b>🇰🇷 {tx('Korean mentor', '한국인 멘토')}</b>
           {me?.admin ? (
             <>
-              <span className="small">{tx('Manager mode is on for this phone.', '이 기기는 관리자 모드예요.')}</span>
+              <span className="small">{tx('Mentor mode is on for this phone.', '이 기기는 멘토 모드예요.')}</span>
               <div className="row" style={{ gap: 8, marginTop: 8 }}>
-                <button className="btn soft xs" onClick={() => go('admin')}>{tx('Open manager page', '관리자 화면')}</button>
-                <button className="btn line xs" onClick={() => call('adminLeave').then(() => showToast(tx('Manager mode off', '관리자 모드를 껐어요'))).catch(() => {})}>{tx('Turn off', '끄기')}</button>
+                <button className="btn soft xs" onClick={() => go('admin')}>{tx('Open mentor page', '멘토 화면')}</button>
+                <button className="btn line xs" onClick={() => call('adminLeave').then(() => showToast(tx('Mentor mode off', '멘토 모드를 껐어요'))).catch(() => {})}>{tx('Turn off', '끄기')}</button>
               </div>
             </>
           ) : (
             <>
-              <span className="small">{tx('Managers get an invite code from the operator, offline. It is the only kind of sign-in in Eoullim.', '관리자는 운영자에게 오프라인으로 초대 코드를 받아요. 어울림의 유일한 「인증」이에요.')}</span>
+              <span className="small">{tx('Korean mentors get an invite code from the operator, offline. It is the only kind of sign-in in Eoullim.', '한국인 멘토는 운영자에게 오프라인으로 초대 코드를 받아요. 어울림의 유일한 「인증」이에요.')}</span>
               <div className="row" style={{ gap: 8, marginTop: 8 }}>
                 <input className="input" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} placeholder={tx('Invite code', '초대 코드')} autoCapitalize="characters" autoComplete="off" />
                 <button
@@ -85,7 +95,7 @@ export default function Settings() {
                     setBusy(true)
                     try {
                       await call('adminClaim', { code: adminCode.trim().toUpperCase() })
-                      showToast(tx('Manager mode on 🇰🇷', '관리자 모드 켜짐 🇰🇷'))
+                      showToast(tx('Mentor mode on 🇰🇷', '멘토 모드 켜짐 🇰🇷'))
                       setAdminCode('')
                     } catch {
                       /* toast shown */

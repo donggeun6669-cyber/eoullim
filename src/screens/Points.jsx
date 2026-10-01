@@ -5,7 +5,7 @@ import { useApp } from '../store.jsx'
 import { LEDGER } from '../i18n.js'
 
 export default function Points() {
-  const { data, me, tx, L, call, showToast, go } = useApp()
+  const { data, me, tx, L, tr, call, showToast, go } = useApp()
   const [busy, setBusy] = useState(null)
   if (!data) return <div className="screen"><Loading /><TabBar current="points" /></div>
 
@@ -23,7 +23,10 @@ export default function Points() {
   return (
     <>
       <div className="screen with-tabs">
-        <h1 className="h1">{tx('Points', '포인트')}</h1>
+        <div>
+          <h1 className="h1">{tx('Points', '포인트')}</h1>
+          <p className="sub">{tx('Optional. Put points on a community question to get answers faster. Groups are always free.', '선택이에요. 커뮤니티 질문에 걸면 답이 더 빨리 와요. 그룹은 언제나 무료.')}</p>
+        </div>
         <div className="hero-card">
           <span className="small light">{tx('My points', '내 포인트')}</span>
           <span className="display" style={{ fontSize: 40 }}>{(me?.points ?? 0).toLocaleString()} P</span>
@@ -52,10 +55,10 @@ export default function Points() {
         <div className="card rules-card">
           <b>{tx('How points work', '포인트 규칙')}</b>
           <ul>
-            <li>{tx('Put 1–1,000 P on a question. It is held until you adopt an answer.', '질문에 1~1,000P를 걸어요. 채택할 때까지 묶여 있어요.')}</li>
+            <li>{tx('Questions can be free. If you want, put 1–1,000 P on one; it is held until you adopt an answer.', '질문은 무료로 해도 돼요. 원하면 1~1,000P를 걸고, 채택할 때까지 묶여 있어요.')}</li>
             <li>{tx('The adopted answer gets all of it.', '채택된 답변이 전부 가져가요.')}</li>
             <li>{tx('No answer in 72 hours → automatic full refund.', '72시간 동안 답이 없으면 자동 전액 환불.')}</li>
-            <li>{tx('Answers but no adoption for 7 days → a Korean manager decides.', '답은 있는데 7일 동안 채택이 없으면 한국인 관리자가 정해요.')}</li>
+            <li>{tx('Answers but no adoption for 7 days → a Korean mentor decides.', '답은 있는데 7일 동안 채택이 없으면 한국인 멘토가 정해요.')}</li>
             <li>{tx('Points can’t be cashed out or sent directly to others.', '포인트는 현금으로 바꾸거나 남에게 직접 보낼 수 없어요.')}</li>
           </ul>
         </div>
@@ -69,8 +72,31 @@ export default function Points() {
           <Icon name="chevron" size={18} />
         </button>
 
+        {data.payments.length > 0 && (
+          <section className="section">
+            <div className="section-head">
+              <h2 className="h3">{tx('Event payments', '이벤트 결제')}</h2>
+              <span className="demo-pill">DEMO</span>
+            </div>
+            <div className="ledger">
+              {data.payments.map((x) => {
+                const e = data.events.find((ev) => ev.id === x.eid)
+                return (
+                  <button key={x.id} className="ledger-row" onClick={() => e && go('event', e.id)}>
+                    <span className="col">
+                      <b>{e ? `${e.emoji} ${tr(e.title).text}` : tx('Event', '이벤트')}</b>
+                      <span className="small">{ago(x.at, data.now, tx)} · {x.status === 'refunded' ? tx('Refunded', '환불됨') : tx('Paid', '결제됨')}</span>
+                    </span>
+                    <span className={'delta ' + (x.status === 'refunded' ? 'plus' : 'minus')}>₩{x.won.toLocaleString()}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         <section className="section">
-          <h2 className="h3">{tx('History', '기록')}</h2>
+          <h2 className="h3">{tx('Points history', '포인트 기록')}</h2>
           {data.ledger.length === 0 && <p className="empty">{tx('No history yet.', '아직 기록이 없어요.')}</p>}
           <div className="ledger">
             {data.ledger.map((l) => (

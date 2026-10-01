@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Avatar, TopBar } from '../components/ui.jsx'
 import { useApp } from '../store.jsx'
-import { AVATARS, COLORS, INTERESTS, LANGS } from '../i18n.js'
+import { AVATARS, COLORS, INTERESTS, LANGS, SCHOOLS } from '../i18n.js'
 
 export default function Profile() {
   const { profile, setProfile, tx, L, back, showToast } = useApp()
-  const [p, setP] = useState(() => ({ nick: '', avatar: '🐯', color: 0, langs: [], interests: [], campus: '', bio: '', ...profile }))
+  const [p, setP] = useState(() => ({ nick: '', avatar: '🐯', color: 0, langs: [], interests: [], campus: '', bio: '', school: 'skku', ...profile }))
   const set = (k, v) => setP((x) => ({ ...x, [k]: v }))
   const toggle = (k, id) => set(k, p[k].includes(id) ? p[k].filter((x) => x !== id) : [...p[k], id])
 
@@ -56,6 +56,16 @@ export default function Profile() {
       </div>
 
       <div className="field">
+        <span className="label">{tx('University', '학교')}</span>
+        <div className="chips">
+          {Object.entries(SCHOOLS).map(([id, n]) => (
+            <button key={id} className="chip" aria-pressed={p.school === id} onClick={() => set('school', id)}>{L(n)}</button>
+          ))}
+        </div>
+        <span className="small">{tx('Shown at the top of every screen, so you always know where you belong.', '모든 화면 위에 보여요 — 내가 어디 소속인지 늘 알 수 있게.')}</span>
+      </div>
+
+      <div className="field">
         <span className="label">{tx('Campus', '캠퍼스')}</span>
         <div className="seg sm">
           {[['', tx('Skip', '안 적음')], ['seoul', tx('Seoul (HSS)', '인사캠')], ['suwon', tx('Suwon (NS)', '자과캠')]].map(([id, label]) => (
@@ -72,7 +82,7 @@ export default function Profile() {
       <div className="card privacy-note">
         <b>🔒 {tx('What we don’t ask', '묻지 않는 것')}</b>
         <span className="small">
-          {tx('No real name, student ID, nationality, major, phone or location. Even small details can identify someone when combined.', '실명·학번·국적·학과·전화번호·위치를 묻지 않아요. 작은 정보도 여러 개 모이면 누군지 알 수 있어서예요.')}
+          {tx('No real name, student ID, major, phone or location. Your country is used only to make your group and is never shown on posts.', '실명·학번·학과·전화번호·위치를 묻지 않아요. 나라는 그룹을 만드는 데만 쓰고 글에는 보이지 않아요.')}
         </span>
         <span className="small">{tx('Only your nickname and avatar appear on posts you don’t make anonymous.', '익명이 아닌 글에만 닉네임과 아바타가 보여요.')}</span>
       </div>

@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import Icon from '../components/Icon.jsx'
-import { AnonToggle, Byline, ExampleTag, Fab, Loading, ReportButton, TabBar, TopBar, ago } from '../components/ui.jsx'
+import { AnonToggle, Byline, ExampleTag, Fab, Loading, ReportButton, TabBar, TopBar, Tr, ago } from '../components/ui.jsx'
+import { QuestionCard } from './Solve.jsx'
 import { hasPrivateInfo } from '../lib/api.js'
 import { useApp } from '../store.jsx'
 import { BOARDS, LOUNGES } from '../i18n.js'
 
+// One board for everything short-lived: questions & help (points optional), meetups for today/this week, free talk.
 const SECTIONS = [
-  { id: 'together', en: 'Together', ko: '같이 해요' },
-  { id: 'free', en: 'Free talk', ko: '자유' },
-  { id: 'lounge', en: 'Languages', ko: '언어별' },
-  { id: 'hot', en: 'Hot', ko: '인기' },
+  { id: 'all', en: 'All', ko: '전체' },
+  { id: 'help', en: '🙋 Help & questions', ko: '🙋 도움·질문' },
+  { id: 'together', en: '🙌 Meet up', ko: '🙌 같이 해요' },
+  { id: 'free', en: '💬 Free talk', ko: '💬 자유' },
+  { id: 'lounge', en: '🌏 Languages', ko: '🌏 언어별' },
+  { id: 'hot', en: '🔥 Hot', ko: '🔥 인기' },
+  { id: 'mine', en: 'Mine', ko: '내 글' },
 ]
 
 function PostCard({ p }) {
@@ -22,19 +27,19 @@ function PostCard({ p }) {
         {p.hidden && <span className="tag coral">{tx('Hidden', '가려짐')}</span>}
         {p.seed && <ExampleTag />}
       </span>
-      <b className="q-title">{p.title}</b>
-      {p.body && <span className="snippet">{p.body}</span>}
+      <Tr text={p.title} as="b" className="q-title" />
+      {p.body && <Tr text={p.body} as="span" className="snippet" />}
       {p.meetup && (
         <span className="meetup-line">
           <span>📅 {p.meetup.date}</span>
-          <span>📍 {p.meetup.place}</span>
-          <span className={'tag ' + (p.meetup.joined >= p.meetup.cap ? 'gray' : 'green')}>
+          <span>📍 <Tr text={p.meetup.place} /></span>
+          <span className={'tag ' + (p.meetup.joined >= p.meetup.cap ? 'gray' : 'solid')}>
             👥 {p.meetup.joined}/{p.meetup.cap} {p.meetup.joined >= p.meetup.cap ? tx('Full', '마감') : ''}
           </span>
         </span>
       )}
       <span className="small">
-        {p.snap ? p.snap.nick : tx('Anonymous', '익명')} · {ago(p.created, data.now, tx)} · ♥ {p.likes} · 💬 {p.comments.length}
+        {p.snap ? p.snap.nick : tx('Anonymous', '익명')}{p.admin ? ' · 🇰🇷' : ''} · {ago(p.created, data.now, tx)} · ♥ {p.likes} · 💬 {p.comments.length}
       </span>
     </button>
   )
@@ -42,28 +47,34 @@ function PostCard({ p }) {
 
 export default function Community() {
   const { data, tx, L, go, profile } = useApp()
-  const [section, setSection] = useState('together')
+  const [section, setSection] = useState('all')
   const myLounge = LOUNGES.find((l) => profile?.langs?.includes(l.slice(2))) || 'l-en'
   const [lounge, setLounge] = useState(myLounge)
   if (!data) return <div className="screen"><Loading /><TabBar current="community" /></div>
 
+  const qs = data.questions.map((q) => ({ t: 'q', item: q, at: q.created, score: q.answers.length * 2 + q.bounty / 10 }))
+  const ps = data.posts.map((p) => ({ t: 'p', item: p, at: p.created, score: p.likes + p.comments.length }))
   let list
-  if (section === 'hot') list = [...data.posts].filter((p) => p.likes + p.comments.length >= 5).sort((a, b) => b.likes + b.comments.length - (a.likes + a.comments.length))
-  else if (section === 'lounge') list = data.posts.filter((p) => p.board === lounge)
-  else list = data.posts.filter((p) => p.board === section)
+  if (section === 'help') list = qs
+  else if (section === 'together' || section === 'free') list = ps.filter((x) => x.item.board === section)
+  else if (section === 'lounge') list = ps.filter((x) => x.item.board === lounge)
+  else if (section === 'hot') list = [...qs, ...ps].filter((x) => x.score >= 5).sort((a, b) => b.score - a.score)
+  else if (section === 'mine') list = [...qs, ...ps].filter((x) => x.item.mine)
+  else list = [...qs, ...ps]
+  if (section !== 'hot') list = [...list].sort((a, b) => b.at - a.at)
 
-  const writeBoard = section === 'lounge' ? lounge : section === 'hot' ? 'free' : section
+  const writeTo = section === 'help' ? ['ask'] : section === 'together' || section === 'free' ? ['write', section] : section === 'lounge' ? ['write', lounge] : ['new']
 
   return (
     <>
       <div className="screen with-tabs">
         <div>
           <h1 className="h1">{tx('Community', '커뮤니티')}</h1>
-          <p className="sub">{tx('Find people, talk freely — anonymous by default.', '같이 할 사람 찾고, 편하게 이야기해요. 기본은 익명이에요.')}</p>
+          <p className="sub">{tx('Quick help, everyday questions and meetups for today. Points are optional. Anonymous by default.', '가벼운 도움, 일상 질문, 오늘의 모임. 포인트는 선택이에요. 기본은 익명.')}</p>
         </div>
-        <div className="seg sm" role="group">
-          {SECTIONS.map((s) => (
-            <button key={s.id} aria-pressed={section === s.id} onClick={() => setSection(s.id)}>{tx(s.en, s.ko)}</button>
+        <div className="chips scroll" role="group">
+          {SECTIONS.map((x) => (
+            <button key={x.id} className="chip" aria-pressed={section === x.id} onClick={() => setSection(x.id)}>{tx(x.en, x.ko)}</button>
           ))}
         </div>
         {section === 'lounge' && (
@@ -76,14 +87,49 @@ export default function Community() {
             <p className="small">{tx('Lounges are by language, not nationality. Koreans who like the language are welcome too.', '라운지는 국적이 아니라 언어로 나눠요. 그 언어에 관심 있는 한국 학생도 환영이에요.')}</p>
           </>
         )}
+        {section === 'all' && (
+          <button className="card row-link guide-link" onClick={() => go('guide')}>
+            <span style={{ fontSize: 22 }}>📘</span>
+            <span className="col">
+              <b>{tx('Official SKKU guide', '성대 공식 안내')}</b>
+              <span className="small">{tx('Visa, insurance, bank, library — check here first, free', '비자·보험·은행·도서관 — 여기 먼저 보면 무료')}</span>
+            </span>
+            <Icon name="chevron" size={18} />
+          </button>
+        )}
         <div className="list">
-          {list.length === 0 && <p className="empty">{tx('No posts yet — write the first one!', '아직 글이 없어요. 첫 글을 써 보세요!')}</p>}
-          {list.map((p) => <PostCard key={p.id} p={p} />)}
+          {list.length === 0 && <p className="empty">{tx('Nothing here yet — write the first one!', '아직 없어요. 첫 글을 써 보세요!')}</p>}
+          {list.map((x) => (x.t === 'q' ? <QuestionCard key={x.item.id} q={x.item} /> : <PostCard key={x.item.id} p={x.item} />))}
         </div>
       </div>
-      <Fab onClick={() => go('write', writeBoard)} label={section === 'together' ? tx('Start a meetup', '모집하기') : tx('Write', '글쓰기')} />
+      <Fab onClick={() => go(...writeTo)} label={section === 'help' ? tx('Ask', '물어보기') : section === 'together' ? tx('Start a meetup', '모집하기') : tx('Write', '글쓰기')} />
       <TabBar current="community" />
     </>
+  )
+}
+
+// What do you want to post?
+export function NewPost() {
+  const { tx, go } = useApp()
+  const opts = [
+    ['ask', null, '🙋', tx('Ask or ask for help', '질문·도움 요청'), tx('Everyday questions, borrow something, a small favor. Points optional.', '일상 질문, 물건 빌리기, 작은 부탁. 포인트는 선택.')],
+    ['write', 'together', '🙌', tx('Meet up today / this week', '오늘·이번 주 같이 할 사람'), tx('Lunch, study, futsal — a one-time meetup.', '밥·스터디·풋살 — 한 번 모이는 모임.')],
+    ['write', 'free', '💬', tx('Free talk', '자유글'), tx('Anything you want to share.', '나누고 싶은 이야기.')],
+  ]
+  return (
+    <div className="screen">
+      <TopBar title={tx('New post', '글쓰기')} />
+      <div className="kind-grid">
+        {opts.map(([r, id, icon, t, d]) => (
+          <button key={t} className="option-card" onClick={() => go(r, id)}>
+            <span style={{ fontSize: 24 }}>{icon}</span>
+            <span className="col"><b>{t}</b><span className="small">{d}</span></span>
+          </button>
+        ))}
+      </div>
+      <p className="small note">🌐 {tx('Write in any language — others read it in theirs.', '어떤 언어로 써도 돼요 — 다른 사람은 자기 언어로 읽어요.')}</p>
+      <p className="small note">🎉 {tx('Looking for a bigger, planned event? See the Events tab.', '정해진 큰 행사는 이벤트 탭에서 찾아보세요.')}</p>
+    </div>
   )
 }
 
@@ -115,7 +161,7 @@ export function Write({ id }) {
 
   return (
     <div className="screen">
-      <TopBar title={together ? tx('Start a meetup', '모집글 쓰기') : tx('New post', '글쓰기')} />
+      <TopBar title={together ? tx('Meet up today / this week', '같이 할 사람 모집') : tx('New post', '글쓰기')} />
       <label className="field">
         <span className="label">{tx('Board', '게시판')}</span>
         <select className="select" value={board} onChange={(e) => setBoard(e.target.value)}>
@@ -189,19 +235,20 @@ export function Post({ id }) {
   return (
     <div className="screen">
       <TopBar title={`${b.icon} ${L(b)}`} />
+      <div className="tags">{p.seed && <ExampleTag />}</div>
       {p.hidden && <span className="tag coral">{tx('Hidden by reports — only you and managers see it', '신고로 가려짐 — 나와 관리자만 보여요')}</span>}
-      <h1 className="h2">{p.title}</h1>
+      <Tr text={p.title} as="h1" className="h2" block />
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <Byline item={p} />
         <ReportButton item={p} type="p" />
       </div>
-      {p.body && <p className="post-body">{p.body}</p>}
+      {p.body && <Tr text={p.body} as="p" className="post-body" block />}
 
       {p.meetup && (
         <div className="card meetup-card">
           <div className="meetup-line big">
             <span>📅 {p.meetup.date}</span>
-            <span>📍 {p.meetup.place}</span>
+            <span>📍 <Tr text={p.meetup.place} /></span>
           </div>
           <div className="progress-dark"><span style={{ width: `${Math.min(100, (p.meetup.joined / p.meetup.cap) * 100)}%` }} /></div>
           <span className="small">{tx(`${p.meetup.joined} of ${p.meetup.cap} joined`, `${p.meetup.cap}명 중 ${p.meetup.joined}명 참여`)}</span>
@@ -229,7 +276,7 @@ export function Post({ id }) {
               <ReportButton item={c} type="c" parentId={p.id} />
             </div>
             {c.hidden && <span className="tag coral">{tx('Hidden', '가려짐')}</span>}
-            <p className="post-body" style={{ fontSize: 14 }}>{c.body}</p>
+            <Tr text={c.body} as="p" className="post-body comment-body" block />
             {me?.admin && <button className="linkish muted" onClick={() => run('adminHide', { type: 'c', id: c.id, parentId: p.id, hidden: !c.hidden })}>{c.hidden ? tx('Show again', '다시 보이기') : tx('Hide', '가리기')}</button>}
           </div>
         ))}
@@ -245,7 +292,7 @@ export function Post({ id }) {
 
       {me?.admin && (
         <div className="card admin-panel">
-          <b>🇰🇷 {tx('Manager tools', '관리자 도구')}</b>
+          <b>🇰🇷 {tx('Mentor tools', '멘토 도구')}</b>
           <button className="btn line xs" disabled={busy} onClick={() => run('adminHide', { type: 'p', id: p.id, hidden: !p.hidden })}>{p.hidden ? tx('Show again', '다시 보이기') : tx('Hide post', '글 가리기')}</button>
           {p.reports > 0 && <span className="small">🚩 {tx(`${p.reports} reports`, `신고 ${p.reports}건`)}</span>}
         </div>

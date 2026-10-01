@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, currentKey, newKey, rpc, setKey } from './lib/api.js'
-import { ERRORS } from './i18n.js'
+import { APP_LANGS, ERRORS } from './i18n.js'
+import { lookup, sameLang, subscribe } from './lib/translate.js'
 
 const Ctx = createContext(null)
 const LS_PROFILE = 'eoullim-profile'
 const LS_LANG = 'eoullim-lang'
 const LS_STARTED = 'eoullim-started'
+const LS_AUTOTR = 'eoullim-autotr'
 
 const read = (k, fallback) => {
   try {
@@ -31,7 +33,18 @@ function parseHash() {
 }
 
 export function AppProvider({ children }) {
-  const [lang, setLangState] = useState(() => read(LS_LANG, 'en'))
+  const [lang, setLangState] = useState(() => {
+    const l = read(LS_LANG, null)
+    if (APP_LANGS.some((x) => x.id === l)) return l
+    // First visit: follow the phone's language if we support it.
+    const nav = (navigator.language || 'en').toLowerCase().split('-')[0]
+    const fil = nav === 'fil' ? 'tl' : nav
+    return APP_LANGS.some((x) => x.id === fil) ? fil : 'en'
+  })
+  const [autoTr, setAutoTrState] = useState(() => read(LS_AUTOTR, true))
+  const [trv, setTrv] = useState(0) // bumps when translations arrive → screens re-render
+  useEffect(() => subscribe(() => setTrv((v) => v + 1)), [])
+  const g = APP_LANGS.find((x) => x.id === lang)?.g || 'en'
   const [profile, setProfileState] = useState(() => read(LS_PROFILE, null))
   const [started, setStarted] = useState(() => read(LS_STARTED, false) && !!currentKey())
   const [data, setData] = useState(null)
@@ -39,8 +52,33 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState(null)
   const toastTimer = useRef(null)
 
-  const tx = useCallback((en, ko) => (lang === 'ko' ? ko : en), [lang])
-  const L = useCallback((pair) => (typeof pair === 'string' ? pair : Array.isArray(pair) ? (lang === 'ko' ? pair[1] : pair[0]) : pair?.[lang] ?? pair?.en ?? ''), [lang])
+  // UI text: written in English + Korean. Other languages: English, machine-translated (cached on the phone).
+  const tx = useCallback(
+    (en, ko) => {
+      if (lang === 'ko') return ko
+      if (lang === 'en' || !en) return en
+      const hit = lookup(en, g, 'ui')
+      return hit ? hit.t : en
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lang, g, trv],
+  )
+  const L = useCallback(
+    (pair) => (typeof pair === 'string' ? pair : Array.isArray(pair) ? tx(pair[0], pair[1]) : pair ? tx(pair.en ?? '', pair.ko ?? pair.en ?? '') : ''),
+    [tx],
+  )
+  // User content (posts, chat, events): translated into my language when it is written in another one.
+  // Returns { text, translated, original }.
+  const tr = useCallback(
+    (text) => {
+      if (!autoTr || !text) return { text, translated: false, original: text }
+      const hit = lookup(text, g)
+      if (!hit || sameLang(hit.src, g) || hit.t === text) return { text, translated: false, original: text, pending: hit === null }
+      return { text: hit.t, translated: true, original: text }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [autoTr, g, trv],
+  )
 
   const showToast = useCallback((text, kind = 'ok') => {
     clearTimeout(toastTimer.current)
@@ -129,6 +167,10 @@ export function AppProvider({ children }) {
     setLangState(l)
     write(LS_LANG, l)
   }
+  const setAutoTr = (v) => {
+    setAutoTrState(v)
+    write(LS_AUTOTR, v)
+  }
   const setProfile = (p) => {
     setProfileState(p)
     write(LS_PROFILE, p)
@@ -139,8 +181,11 @@ export function AppProvider({ children }) {
     [profile],
   )
 
+  const school = profile?.school || 'skku'
+  const myGroup = data?.me?.group || null
   const value = {
-    lang, setLang, tx, L, profile, setProfile, snap, started, start, restore, resetDevice,
+    school, myGroup,
+    lang, setLang, autoTr, setAutoTr, tr, tx, L, profile, setProfile, snap, started, start, restore, resetDevice,
     data, me: data?.me, call, refresh, route, go, back, toast, showToast, setToast, errorText,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

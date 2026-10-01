@@ -1,7 +1,7 @@
 // One JSON document in a private Vercel Blob. Writes use the blob's ETag (ifMatch), so two people
 // adopting / charging at the same moment can never overwrite each other — the loser just retries.
 import { get, put, BlobPreconditionFailedError } from '@vercel/blob'
-import { emptyDb } from './logic.js'
+import { emptyDb, migrate } from './logic.js'
 
 const PATH = process.env.EOULLIM_DB || (process.env.VERCEL_ENV === 'production' ? 'eoullim/db.json' : 'eoullim/db-preview.json')
 let cache = null // { etag, db } — reused while the blob is unchanged (HTTP 304)
@@ -17,7 +17,7 @@ export async function load() {
   const r = await get(PATH, { access: 'private', useCache: false, ifNoneMatch: cache?.etag })
   if (!r) return { etag: null, db: emptyDb() }
   if (r.statusCode === 304 && cache) return { etag: cache.etag, db: structuredClone(cache.db) }
-  const db = JSON.parse(await readText(r.stream))
+  const db = migrate(JSON.parse(await readText(r.stream)))
   cache = { etag: strong(r.blob.etag), db }
   return { etag: cache.etag, db: structuredClone(db) }
 }

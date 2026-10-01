@@ -48,6 +48,70 @@ export const LEDGER = {
   refund_delete: ['Deleted question — refund', '질문 삭제 환불'],
   charge: ['Charged (demo)', '충전 (데모)'],
 }
+// v3 — app language (UI + live translation of boards and group chat). Google codes in `g`.
+// UI text exists in English and Korean; every other language is machine-translated from English on the fly.
+export const APP_LANGS = [
+  { id: 'en', label: 'English', g: 'en' },
+  { id: 'ko', label: '한국어', g: 'ko' },
+  { id: 'zh', label: '中文', g: 'zh-CN' },
+  { id: 'vi', label: 'Tiếng Việt', g: 'vi' },
+  { id: 'ja', label: '日本語', g: 'ja' },
+  { id: 'tl', label: 'Filipino', g: 'tl' },
+  { id: 'uz', label: 'O‘zbek', g: 'uz' },
+  { id: 'mn', label: 'Монгол', g: 'mn' },
+  { id: 'my', label: 'မြန်မာ', g: 'my' },
+  { id: 'id', label: 'Bahasa Indonesia', g: 'id' },
+  { id: 'th', label: 'ไทย', g: 'th' },
+  { id: 'ru', label: 'Русский', g: 'ru' },
+  { id: 'es', label: 'Español', g: 'es' },
+  { id: 'fr', label: 'Français', g: 'fr' },
+  { id: 'de', label: 'Deutsch', g: 'de' },
+]
+export const SCHOOLS = {
+  skku: ['Sungkyunkwan University', '성균관대학교'],
+  handong: ['Handong Global University', '한동대학교'],
+  cnu: ['Chungnam National University', '충남대학교'],
+  other: ['Other university', '다른 대학교'],
+}
+// Countries for groups. `lang` = the app language we suggest for people from there.
+export const COUNTRIES = {
+  ph: { flag: '🇵🇭', en: 'Philippines', ko: '필리핀', lang: 'tl' },
+  vn: { flag: '🇻🇳', en: 'Vietnam', ko: '베트남', lang: 'vi' },
+  cn: { flag: '🇨🇳', en: 'China', ko: '중국', lang: 'zh' },
+  jp: { flag: '🇯🇵', en: 'Japan', ko: '일본', lang: 'ja' },
+  uz: { flag: '🇺🇿', en: 'Uzbekistan', ko: '우즈베키스탄', lang: 'uz' },
+  mn: { flag: '🇲🇳', en: 'Mongolia', ko: '몽골', lang: 'mn' },
+  mm: { flag: '🇲🇲', en: 'Myanmar', ko: '미얀마', lang: 'my' },
+  id: { flag: '🇮🇩', en: 'Indonesia', ko: '인도네시아', lang: 'id' },
+  th: { flag: '🇹🇭', en: 'Thailand', ko: '태국', lang: 'th' },
+  np: { flag: '🇳🇵', en: 'Nepal', ko: '네팔', lang: 'en' },
+  us: { flag: '🇺🇸', en: 'USA', ko: '미국', lang: 'en' },
+  fr: { flag: '🇫🇷', en: 'France', ko: '프랑스', lang: 'fr' },
+  de: { flag: '🇩🇪', en: 'Germany', ko: '독일', lang: 'de' },
+  other: { flag: '🌍', en: 'Other', ko: '기타', lang: 'en' },
+  kr: { flag: '🇰🇷', en: 'Korea', ko: '한국', lang: 'ko' },
+}
+// "Philippines · Group 2" / "필리핀 2조"
+export const groupName = (g, lang) => {
+  if (!g) return ''
+  const c = COUNTRIES[g.country] || COUNTRIES.other
+  return lang === 'ko' ? `${c.ko} ${g.n}조` : `${c.en} · Group ${g.n}`
+}
+export const EVENT_CATS = {
+  korea: { icon: '🇰🇷', en: 'Only in Korea', ko: '한국 체험' },
+  country: { icon: '🌏', en: 'Holidays by country', ko: '나라별 명절' },
+  group: { icon: '🏆', en: 'Group vs group', ko: '그룹 대항' },
+}
+export const EVENT_EMOJI = ['🔮', '👻', '👘', '🏯', '🍜', '🎤', '🎨', '🏆', '⚽', '💐', '🕯️', '🍚', '🎉', '🏮', '🥟', '🍲', '✍️', '⛰️']
+// One rapport mission per week, the same for every group.
+export const MISSIONS = [
+  ['Eat a school-cafeteria lunch together and share one photo 🍚', '학식 같이 먹고 사진 한 장 올리기 🍚'],
+  ['Each person recommends one song from home 🎵', '서로의 나라 노래 한 곡씩 추천하기 🎵'],
+  ['Tell each other one thing that surprised you in Korea 😲', '한국에서 처음 놀랐던 일 하나씩 이야기하기 😲'],
+  ['Mentor picks a neighborhood — take a 30-minute walk together 🚶', '멘토가 고른 동네를 30분 같이 걷기 🚶'],
+  ['Teach the group one word in your language 🗣️', '내 나라 말 한 단어씩 가르쳐 주기 🗣️'],
+  ['Try a Korean snack none of you has eaten 🍡', '아무도 안 먹어 본 한국 간식 같이 먹어 보기 🍡'],
+]
 export const ERRORS = {
   offline: ['No connection. Try again.', '연결이 안 돼요. 다시 시도해 주세요.'],
   server: ['Something went wrong. Try again.', '문제가 생겼어요. 다시 시도해 주세요.'],
@@ -67,7 +131,17 @@ export const ERRORS = {
   bad_key: ['That recovery code is not valid.', '복구 코드 형식이 맞지 않아요.'],
   no_device: ['This phone is not set up yet.', '이 기기가 아직 등록되지 않았어요.'],
   not_found: ['It was removed.', '삭제된 글이에요.'],
-  bad_cap: ['Group size must be 2–50.', '인원은 2~50명이에요.'],
+  bad_cap: ['Check the number of people.', '인원을 확인해 주세요.'],
+  in_group: ['You are already in a group.', '이미 그룹에 들어가 있어요.'],
+  mentor_no_join: ['Mentors take a group from the mentor page.', '멘토는 멘토 화면에서 그룹을 맡아요.'],
+  has_mentor: ['This group already has a mentor.', '이미 멘토가 있는 그룹이에요.'],
+  mentor_max: ['A mentor can look after up to 3 groups.', '멘토 한 명은 3개 그룹까지 맡을 수 있어요.'],
+  not_member: ['Only group members can do this.', '그룹 멤버만 할 수 있어요.'],
+  event_closed: ['This event is closed.', '마감된 이벤트예요.'],
+  late_cancel: ['Free cancellation ends 2 days before the event.', '행사 2일 전부터는 취소할 수 없어요.'],
+  bad_fee: ['Fee must be 0–200,000 won, in 100-won steps.', '참가비는 0~200,000원, 100원 단위예요.'],
+  bad_date: ['Pick a date from today on.', '오늘 이후 날짜를 골라 주세요.'],
+  not_admin: ['Mentors only.', '멘토만 할 수 있어요.'],
 }
 export const LANGS = [
   ['ko', '한국어'], ['en', 'English'], ['zh', '中文'], ['vi', 'Tiếng Việt'], ['ja', '日本語'],
@@ -79,7 +153,8 @@ export const INTERESTS = [
   ['language', 'Language exchange', '언어 교환'], ['study', 'Study', '스터디'], ['photo', 'Photos', '사진'], ['hiking', 'Hiking', '등산'],
 ]
 export const AVATARS = ['🐯', '🦊', '🐼', '🐨', '🐧', '🦉', '🐙', '🦋', '🌸', '🍀', '🌙', '⭐']
+// Avatar backgrounds stay inside the 60-30-10 palette: tints of the accent (violet) and the navy.
 export const COLORS = [
-  ['#ECEAFF', '#2B1FB8'], ['#FFE4DD', '#8A2C14'], ['#DDF1E7', '#0A4A2C'], ['#FFF1D6', '#6B4300'],
-  ['#DCE7F3', '#1E3A5F'], ['#D8F1EC', '#0B4A40'], ['#F3E3F7', '#5B1E6B'], ['#EDEDF2', '#16151F'],
+  ['#EEECFF', '#2B1FB8'], ['#E2DEFF', '#2B1FB8'], ['#D4CEFF', '#2B1FB8'], ['#F4F3FA', '#2B1FB8'],
+  ['#E7EAF0', '#0F1B2E'], ['#DCE1EA', '#0F1B2E'], ['#CED5E1', '#0F1B2E'], ['#F1F2F5', '#0F1B2E'],
 ]

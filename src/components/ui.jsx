@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Icon from './Icon.jsx'
 import { useApp } from '../store.jsx'
-import { COLORS, KINDS, LEVELS, STATUS, TAGS } from '../i18n.js'
+import { APP_LANGS, BOARDS, COLORS, COUNTRIES, KINDS, LEVELS, SCHOOLS, STATUS, TAGS, groupName } from '../i18n.js'
 
 export function TopBar({ title, sub, right, onBack }) {
   const { back, tx } = useApp()
@@ -19,37 +19,141 @@ export function TopBar({ title, sub, right, onBack }) {
   )
 }
 
+// Language picker: a native select styled as a pill (works the same on every phone).
 export function LangToggle({ dark }) {
   const { lang, setLang } = useApp()
   return (
-    <button
-      className={'lang-toggle' + (dark ? ' dark' : '')}
-      onClick={() => setLang(lang === 'en' ? 'ko' : 'en')}
-      aria-label={lang === 'en' ? '한국어로 보기' : 'Switch to English'}
-    >
-      <span style={{ opacity: lang === 'en' ? 1 : 0.5 }}>EN</span> · <span style={{ opacity: lang === 'ko' ? 1 : 0.5 }}>한국어</span>
-    </button>
+    <label className={'lang-toggle' + (dark ? ' dark' : '')}>
+      <Icon name="globe" size={16} />
+      <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Language / 언어">
+        {APP_LANGS.map((l) => (
+          <option key={l.id} value={l.id}>{l.label}</option>
+        ))}
+      </select>
+    </label>
   )
 }
 
 const TABS = [
   { id: 'home', icon: 'home', en: 'Home', ko: '홈' },
-  { id: 'solve', icon: 'hand', en: 'Ask', ko: '해결' },
+  { id: 'group', icon: 'users', en: 'My group', ko: '내 그룹' },
   { id: 'community', icon: 'community', en: 'Community', ko: '커뮤니티' },
+  { id: 'events', icon: 'calendar', en: 'Events', ko: '이벤트' },
   { id: 'points', icon: 'points', en: 'Points', ko: '포인트' },
 ]
+const SEEN = 'eoullim-seen-'
+export const markSeen = (gid, ts) => {
+  try {
+    localStorage.setItem(SEEN + gid, String(ts))
+  } catch {
+    /* ignore */
+  }
+}
+function unreadCount(data) {
+  const g = data?.myGroups?.[0]
+  if (!g) return 0
+  let seen = 0
+  try {
+    seen = Number(localStorage.getItem(SEEN + g.id) || 0)
+  } catch {
+    /* ignore */
+  }
+  return g.messages.filter((m) => !m.system && !m.mine && m.created > seen).length
+}
 
 export function TabBar({ current }) {
-  const { go, tx } = useApp()
+  const { go, tx, data } = useApp()
+  const unread = current === 'group' ? 0 : unreadCount(data)
   return (
     <nav className="tabbar" aria-label="Main">
       {TABS.map((t) => (
         <button key={t.id} aria-current={current === t.id ? 'page' : undefined} onClick={() => go(t.id)}>
           <Icon name={t.icon} size={24} />
           <span>{tx(t.en, t.ko)}</span>
+          {t.id === 'group' && unread > 0 && <span className="count">{unread > 9 ? '9+' : unread}</span>}
         </button>
       ))}
     </nav>
+  )
+}
+
+// "Philippines · Group 2" / "필리핀 2조" — in any app language.
+export function useGroupName() {
+  const { tx } = useApp()
+  return (g) => (g ? tx(groupName(g, 'en'), groupName(g, 'ko')) : '')
+}
+export const flagOf = (g) => (COUNTRIES[g?.country] || COUNTRIES.other).flag
+
+// Where am I? Shown at the top of every screen: school › board, and my group.
+const PLACES = {
+  home: ['Home', '홈'],
+  community: ['Community board', '커뮤니티 게시판'],
+  ask: ['Community board › Ask', '커뮤니티 게시판 › 질문하기'],
+  q: ['Community board › Question', '커뮤니티 게시판 › 질문'],
+  write: ['Community board › New post', '커뮤니티 게시판 › 글쓰기'],
+  new: ['Community board › New post', '커뮤니티 게시판 › 글쓰기'],
+  events: ['Event board', '이벤트 게시판'],
+  event: ['Event board', '이벤트 게시판'],
+  eventNew: ['Event board › Open an event', '이벤트 게시판 › 이벤트 열기'],
+  points: ['Points', '포인트'],
+  profile: ['My profile', '내 프로필'],
+  settings: ['Settings', '설정'],
+  admin: ['Mentor page', '멘토 화면'],
+  guide: ['Official guide', '공식 안내'],
+  setup: ['Getting started', '시작하기'],
+}
+export function Belong() {
+  const { route, school, data, me, L, tx, go } = useApp()
+  const gn = useGroupName()
+  const name = route.name || 'home'
+  const myGroup = data?.myGroups?.find((g) => !g.mentoring)
+  const mentoring = data?.myGroups?.filter((g) => g.mentoring) || []
+  let place = PLACES[name] || PLACES.home
+  if (name === 'group') {
+    const g = myGroup || mentoring[0]
+    place = g ? [`${groupName(g, 'en')} · group room`, `${groupName(g, 'ko')} 그룹방`] : ['Group room', '그룹방']
+  }
+  if (name === 'post') {
+    const b = BOARDS[data?.posts?.find((p) => p.id === route.id)?.board]
+    if (b) place = [`Community board › ${b.en}`, `커뮤니티 게시판 › ${b.ko}`]
+  }
+  return (
+    <div className="belong" role="note" aria-label={tx('Where you are', '지금 있는 곳')}>
+      <button className="belong-where" onClick={() => go('profile')}>
+        <span aria-hidden="true">🏫</span>
+        <span className="truncate">
+          {L(SCHOOLS[school] || SCHOOLS.skku)} <span className="belong-sep">›</span> <b>{L(place)}</b>
+        </span>
+      </button>
+      {myGroup ? (
+        <button className="belong-group" onClick={() => go('group')}>{flagOf(myGroup)} {gn(myGroup)}</button>
+      ) : mentoring.length ? (
+        <button className="belong-group" onClick={() => go('group')}>🇰🇷 {tx('Mentor', '멘토')} · {gn(mentoring[0])}</button>
+      ) : me?.admin ? (
+        <button className="belong-group" onClick={() => go('admin')}>🇰🇷 {tx('Mentor', '멘토')}</button>
+      ) : (
+        <button className="belong-group ghost" onClick={() => go('setup')}>+ {tx('Find my group', '내 그룹 찾기')}</button>
+      )}
+    </div>
+  )
+}
+
+// User content in my language. Shows a small globe when it was translated.
+export function Tr({ text, as: As = 'span', className, block }) {
+  const { tr, tx } = useApp()
+  const [orig, setOrig] = useState(false)
+  if (!text) return null
+  const r = tr(text)
+  if (!block) return <As className={className}>{r.text}{r.translated && <span className="tr-mark" title={tx('Translated', '번역됨')}> 🌐</span>}</As>
+  return (
+    <>
+      <As className={className}>{orig ? r.original : r.text}</As>
+      {r.translated && (
+        <button className="tr-note" onClick={() => setOrig(!orig)}>
+          🌐 {orig ? tx('Show translation', '번역 보기') : tx('Translated · show original', '자동 번역됨 · 원문 보기')}
+        </button>
+      )}
+    </>
   )
 }
 
@@ -107,7 +211,7 @@ export function Byline({ item, size = 32, showLevel = true }) {
       <span className="col">
         <span className="byline-top">
           <b className="truncate">{item.snap ? item.snap.nick : tx('Anonymous', '익명')}</b>
-          {item.admin && <span className="tag manager">🇰🇷 {tx('Manager', '관리자')}</span>}
+          {item.admin && <span className="tag manager">🇰🇷 {tx('Mentor', '멘토')}</span>}
           {item.mine && <span className="tag gray">{tx('Me', '나')}</span>}
           {item.seed && <ExampleTag />}
         </span>
@@ -195,11 +299,11 @@ export function ReportButton({ item, type, parentId }) {
       className="linkish muted"
       disabled={busy}
       onClick={async () => {
-        if (!window.confirm(tx('Report this to the managers?', '관리자에게 신고할까요?'))) return
+        if (!window.confirm(tx('Report this to the mentors?', '멘토에게 신고할까요?'))) return
         setBusy(true)
         try {
           await call('report', { type, id: item.id, parentId })
-          showToast(tx('Reported. A manager will check it.', '신고했어요. 관리자가 확인해요.'))
+          showToast(tx('Reported. A mentor will check it.', '신고했어요. 멘토가 확인해요.'))
         } catch {
           /* toast already shown */
         }

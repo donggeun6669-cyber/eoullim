@@ -1,4 +1,6 @@
-// Eoullim v2 server rules. Pure functions over one JSON document (db).
+// Eoullim v3 server rules. Pure functions over one JSON document (db).
+// v3 (2026-10-01): groups (same country 3–4 + one Korean mentor, free) · paid events (main revenue, fee commission)
+// · one Community board where points on a question are optional (secondary revenue).
 // No accounts: a device holds a random key; we only ever store a hash of it (pid).
 import crypto from 'node:crypto'
 import { seedDb } from './seed.js'
@@ -6,20 +8,38 @@ import { seedDb } from './seed.js'
 export const RULES = {
   WON_PER_POINT: 100, // 100원 = 1P (2026-09-30 동근님)
   STARTER: 30,
-  MIN_BOUNTY: 1,
+  MIN_BOUNTY: 0, // v3: points on a question are optional
   MAX_BOUNTY: 1000,
   NO_ANSWER_REFUND_H: 72,
   REVIEW_AFTER_D: 7,
   REPORT_HIDE: 3,
   ADMIN_POOL_RATE: 0.3,
   PACKS: [10, 30, 50, 100], // points; price = points × 100원
+  // groups (free)
+  GROUP_CAP: 4, // students per group (+ 1 Korean mentor)
+  GROUP_START: 3, // a group "starts" at 3 students
+  MENTOR_MAX: 3, // groups one mentor can look after
+  // events (main revenue)
+  EVENT_RATE: 0.15, // Eoullim keeps 15% of each fee; 85% is the host's budget to run the event
+  CANCEL_FREE_D: 2, // free cancellation until 2 days before
+  MAX_FEE: 200000,
 }
 const HOUR = 3600e3
-const LIMITS = { title: 80, body: 1000, comment: 300, nick: 20, place: 60 }
+const LIMITS = { title: 80, body: 1000, comment: 300, nick: 20, place: 60, msg: 500 }
+const DAY = 24 * HOUR
 
 export const KINDS = ['know', 'borrow', 'do']
 export const TAGS = ['life', 'admin', 'school', 'health', 'housing', 'korean', 'kstyle', 'etc']
 export const BOARDS = ['together', 'free', 'l-en', 'l-zh', 'l-vi', 'l-uz', 'l-mn', 'l-ja', 'l-ko']
+export const SCHOOLS = ['skku', 'handong', 'cnu', 'other']
+export const COUNTRIES = ['ph', 'vn', 'cn', 'jp', 'uz', 'mn', 'mm', 'id', 'th', 'np', 'us', 'fr', 'de', 'other']
+export const EVENT_CATS = ['korea', 'country', 'group']
+const EVENT_EMOJI = ['🔮', '👻', '👘', '🏯', '🍜', '🎤', '🎨', '🏆', '⚽', '💐', '🕯️', '🍚', '🎉', '🏮', '🥟', '🍲', '✍️', '⛰️']
+// Korea time helpers: event dates are written in KST.
+const kstDay = (now, plus = 0) => new Date(now + plus * DAY + 9 * HOUR).toISOString().slice(0, 10)
+export const eventStart = (e) => Date.parse(`${e.date}T${e.time || '00:00'}:00+09:00`)
+// Weeks start on Monday (KST); group missions rotate weekly.
+export const weekOf = (now) => Math.floor((now + 9 * HOUR - 4 * DAY) / (7 * DAY))
 
 export class UserError extends Error {
   constructor(code, status = 400) {
@@ -83,6 +103,18 @@ function cleanSnap(snap, anon) {
 export function emptyDb(now = Date.now()) {
   return seedDb(now)
 }
+// v2 → v3: add groups, events and payments (and the new example posts) to a live db without touching user data.
+export function migrate(db) {
+  if ((db.v || 0) >= 3) return db
+  const s = seedDb(db.seededAt || Date.now())
+  db.groups = db.groups || s.groups
+  db.events = db.events || s.events
+  db.payments = db.payments || []
+  for (const q of s.questions) if (!db.questions.some((x) => x.id === q.id)) db.questions.push(q)
+  for (const p of s.posts) if (!db.posts.some((x) => x.id === p.id)) db.posts.push(p)
+  db.v = 3
+  return db
+}
 function device(db, pid) {
   const d = db.devices[pid]
   if (!d) fail('no_device', 401)
@@ -104,6 +136,12 @@ function move(db, fromPid, toPid, amount, reason, ref) {
     ledger(db, toPid, amount, reason, ref)
   }
 }
+const findG = (db, id) => (db.groups || []).find((g) => g.id === id) || fail('not_found', 404)
+const findE = (db, id) => (db.events || []).find((e) => e.id === id) || fail('not_found', 404)
+const findMyGroup = (db, pid) => (db.groups || []).find((g) => g.members.some((m) => m.pid === pid))
+function sysMsg(g, type, snap) {
+  g.messages.push({ id: newId('m'), system: type, snap: snap || null, body: '', created: Date.now() })
+}
 const findQ = (db, id) => db.questions.find((q) => q.id === id) || fail('not_found', 404)
 const findP = (db, id) => db.posts.find((p) => p.id === id) || fail('not_found', 404)
 const requireAdmin = (db, pid) => device(db, pid).admin || fail('not_admin', 403)
@@ -114,7 +152,8 @@ const liveAnswers = (q) => q.answers.filter((a) => !a.hidden)
 export function sweep(db, now = Date.now()) {
   let changed = false
   for (const q of db.questions) {
-    if (q.status !== 'open' || q.seed) continue
+    // Free questions (0 P) have nothing to refund or decide: they simply stay open.
+    if (q.status !== 'open' || q.seed || !q.bounty) continue
     const age = now - q.created
     if (liveAnswers(q).length === 0 && age > RULES.NO_ANSWER_REFUND_H * HOUR) {
       q.status = 'refunded'
@@ -130,7 +169,25 @@ export function sweep(db, now = Date.now()) {
       changed = true
     }
   }
+  // Events: if the minimum number of people hasn't joined 2 days before, cancel and refund everyone.
+  for (const e of db.events || []) {
+    if (e.status !== 'open' || e.seed) continue
+    if (now >= eventStart(e) - RULES.CANCEL_FREE_D * DAY && e.joined.length < e.min) {
+      e.status = 'cancelled'
+      e.cancelReason = 'min'
+      refundEvent(db, e)
+      changed = true
+    }
+  }
   return changed
+}
+function refundEvent(db, e, onlyPid) {
+  for (const pay of db.payments) {
+    if (pay.eid === e.id && pay.status === 'paid' && (!onlyPid || pay.pid === onlyPid)) {
+      pay.status = 'refunded'
+      pay.refundedAt = Date.now()
+    }
+  }
 }
 
 function adoptedCounts(db) {
@@ -174,7 +231,7 @@ export function view(db, pid, now = Date.now()) {
   }))
 
   const posts = db.posts.filter(canSee).map((p) => ({
-    id: p.id, board: p.board, title: p.title, body: p.body, created: at(p), snap: p.snap,
+    id: p.id, board: p.board, title: p.title, body: p.body, created: at(p), snap: p.snap, admin: !!p.admin,
     hidden: !!p.hidden, seed: !!p.seed, level: lv(p.author), mine: p.author === pid,
     likes: p.likes.length, liked: p.likes.includes(pid),
     meetup: p.meetup && { ...p.meetup, date: p.meetup.inDays != null ? day(p.meetup.inDays) : p.meetup.date, joined: p.meetup.joined.length, iJoined: p.meetup.joined.includes(pid) },
@@ -186,30 +243,94 @@ export function view(db, pid, now = Date.now()) {
     })),
   }))
 
+  // ----- groups: everyone sees the directory; only members and the mentor see the chat -----
+  const groups = db.groups || []
+  const groupOfPid = {}
+  for (const g of groups) for (const m of g.members) groupOfPid[m.pid] = g
+  const myGroup = groupOfPid[pid] || null
+  const gname = (g) => ({ id: g.id, school: g.school, country: g.country, n: g.n })
+  const week = weekOf(now)
+  const groupDir = groups.map((g) => ({
+    ...gname(g), members: g.members.length, mentor: g.mentorSnap || (g.mentor ? {} : null),
+    hasMentor: !!g.mentor, mine: g === myGroup, mentoring: g.mentor === pid,
+  }))
+  const myGroups = groups
+    .filter((g) => g === myGroup || (g.mentor && g.mentor === pid))
+    .map((g) => ({
+      ...gname(g),
+      mentoring: g.mentor === pid,
+      mentor: g.mentor ? g.mentorSnap || null : null,
+      hasMentor: !!g.mentor,
+      members: g.members.map((m) => ({ snap: m.snap, me: m.pid === pid, joined: m.seed ? now - (m.ageMin || 0) * 60e3 : m.joined })),
+      missionDone: !!g.missions?.[week],
+      missionBy: g.missions?.[week]?.snap || null,
+      messages: g.messages.slice(-120).map((m) => ({
+        id: m.id, body: m.body, snap: m.snap, mentor: !!m.mentor, system: m.system || null,
+        created: at(m), mine: m.author === pid, seed: !!m.seed,
+      })),
+    }))
+
+  // ----- events -----
+  const today = day(0)
+  const events = (db.events || []).map((e) => {
+    const gs = {}
+    for (const j of e.joined) {
+      const g = groupOfPid[j.pid]
+      if (!g) continue
+      gs[g.id] = gs[g.id] || { ...gname(g), count: 0 }
+      gs[g.id].count += 1
+    }
+    return {
+      id: e.id, cat: e.cat, country: e.country || null, emoji: e.emoji, title: e.title, body: e.body,
+      date: e.date, time: e.time, place: e.place, fee: e.fee, cap: e.cap, min: e.min,
+      host: e.hostSnap || null, hostType: e.hostType, mine: e.host === pid, seed: !!e.seed,
+      status: e.status === 'open' && e.date < today ? 'done' : e.status, cancelReason: e.cancelReason,
+      joined: e.joined.length, iJoined: e.joined.some((j) => j.pid === pid),
+      people: e.joined.slice(0, 10).map((j) => j.snap),
+      groups: Object.values(gs).sort((a, b) => b.count - a.count),
+      myGroupCount: myGroup ? e.joined.filter((j) => groupOfPid[j.pid] === myGroup).length : 0,
+      start: eventStart(e),
+    }
+  })
+
   const out = {
     now,
+    week,
     rules: RULES,
-    me: me ? { pid, points: me.points, admin: isAdmin, adopted: counts[pid] || 0, level: lv(pid) } : null,
+    me: me ? { pid, points: me.points, admin: isAdmin, adopted: counts[pid] || 0, level: lv(pid), group: myGroup ? gname(myGroup) : null } : null,
     questions,
     posts,
+    groups: groupDir,
+    myGroups,
+    events,
+    payments: (db.payments || []).filter((x) => x.pid === pid).slice(-30).reverse().map((x) => ({ id: x.id, eid: x.eid, won: x.won, status: x.status, at: x.at })),
     ledger: db.ledger.filter((l) => l.pid === pid).slice(-60).reverse(),
   }
   if (isAdmin) out.adminStats = adminStats(db)
   return out
 }
 
+// Money, in one place. Events are the main revenue (15% commission); points are the second.
+// 30% of Eoullim's revenue goes to the Korean mentors, split by the work they did.
 function adminStats(db) {
   const chargedWon = db.ledger.filter((l) => l.reason === 'charge').reduce((s, l) => s + (l.won || 0), 0)
-  const pool = Math.floor(chargedWon * RULES.ADMIN_POOL_RATE)
+  const paid = (db.payments || []).filter((x) => x.status === 'paid')
+  const eventWon = paid.reduce((s, x) => s + x.won, 0)
+  const commission = paid.reduce((s, x) => s + x.commission, 0)
+  const revenue = commission + chargedWon
+  const pool = Math.floor(revenue * RULES.ADMIN_POOL_RATE)
   const work = {}
   for (const e of db.adminLog) work[e.pid] = (work[e.pid] || 0) + 1
   for (const q of db.questions) {
     const a = q.status === 'adopted' && q.answers.find((x) => x.id === q.adopted)
-    if (a?.admin) work[a.author] = (work[a.author] || 0) + 1
+    if (a?.admin && !a.seed) work[a.author] = (work[a.author] || 0) + 1 // example mentors never get paid
   }
   const total = Object.values(work).reduce((s, n) => s + n, 0)
   const admins = Object.entries(work).map(([pid, n]) => ({ pid, work: n, won: total ? Math.floor((pool * n) / total) : 0 }))
-  return { chargedWon, pool, rate: RULES.ADMIN_POOL_RATE, admins, totalWork: total }
+  return {
+    chargedWon, eventWon, commission, revenue, pool, rate: RULES.ADMIN_POOL_RATE, eventRate: RULES.EVENT_RATE,
+    payments: paid.length, admins, totalWork: total,
+  }
 }
 
 // ---------- actions ----------
@@ -235,7 +356,7 @@ export function apply(db, pid, action, p = {}, env = {}) {
         id: newId('q'), kind, tag, title: maskText(title).text, body: maskText(body).text, bounty,
         author: pid, snap: cleanSnap(p.snap, p.anon), created: now, status: 'open', answers: [], reports: [],
       }
-      move(db, pid, null, bounty, 'ask', q.id)
+      if (bounty > 0) move(db, pid, null, bounty, 'ask', q.id)
       db.questions.unshift(q)
       return { id: q.id }
     }
@@ -273,7 +394,7 @@ export function apply(db, pid, action, p = {}, env = {}) {
       if (q.status !== 'open') fail('closed')
       if (q.answers.length > 0) fail('has_answers')
       db.questions = db.questions.filter((x) => x !== q)
-      move(db, null, pid, q.bounty, 'refund_delete', q.id)
+      if (q.bounty > 0) move(db, null, pid, q.bounty, 'refund_delete', q.id)
       return
     }
     case 'post': {
@@ -294,7 +415,7 @@ export function apply(db, pid, action, p = {}, env = {}) {
       }
       const post = {
         id: newId('p'), board, title: maskText(title).text, body: maskText(body).text, author: pid,
-        snap: cleanSnap(p.snap, p.anon), created: now, likes: [], comments: [], reports: [], meetup,
+        snap: cleanSnap(p.snap, p.anon), admin: !!device(db, pid).admin, created: now, likes: [], comments: [], reports: [], meetup,
       }
       db.posts.unshift(post)
       return { id: post.id }
@@ -361,7 +482,7 @@ export function apply(db, pid, action, p = {}, env = {}) {
       q.status = 'refunded'
       q.closed = now
       q.refundReason = 'admin'
-      move(db, null, q.author, q.bounty, 'refund_admin', q.id)
+      if (q.bounty > 0) move(db, null, q.author, q.bounty, 'refund_admin', q.id)
       adminLog(db, pid, 'refund', q.id)
       return
     }
@@ -383,6 +504,129 @@ export function apply(db, pid, action, p = {}, env = {}) {
       q.aged = true
       return
     }
+    // ----- groups (free) -----
+    case 'joinGroup': {
+      if (findMyGroup(db, pid)) fail('in_group')
+      if (device(db, pid).admin) fail('mentor_no_join')
+      const school = SCHOOLS.includes(p.school) ? p.school : fail('bad_school')
+      const country = COUNTRIES.includes(p.country) ? p.country : fail('bad_country')
+      const same = db.groups.filter((g) => g.school === school && g.country === country).sort((a, b) => a.n - b.n)
+      let g = same.find((x) => x.members.length < RULES.GROUP_CAP)
+      if (!g) {
+        g = { id: newId('g'), school, country, n: (same.at(-1)?.n || 0) + 1, created: now, members: [], mentor: null, mentorSnap: null, messages: [], missions: {} }
+        db.groups.push(g)
+      }
+      const snap = cleanSnap(p.snap)
+      g.members.push({ pid, snap, joined: now })
+      sysMsg(g, 'join', snap)
+      if (g.members.length === RULES.GROUP_START) sysMsg(g, 'start', null)
+      return { id: g.id }
+    }
+    case 'leaveGroup': {
+      const g = findMyGroup(db, pid) || fail('no_group')
+      const m = g.members.find((x) => x.pid === pid)
+      g.members = g.members.filter((x) => x !== m)
+      sysMsg(g, 'leave', m.snap)
+      return
+    }
+    case 'groupMsg': {
+      const g = findG(db, p.gid)
+      const member = g.members.find((x) => x.pid === pid)
+      const isMentor = g.mentor === pid
+      if (!member && !isMentor) fail('not_member', 403)
+      const snap = cleanSnap(p.snap)
+      if (member && snap) member.snap = snap
+      if (isMentor && snap) g.mentorSnap = snap
+      g.messages.push({ id: newId('m'), author: pid, snap, mentor: isMentor, body: maskText(clean(p.body, LIMITS.msg)).text, created: now })
+      if (g.messages.length > 400) g.messages.splice(0, g.messages.length - 400)
+      return
+    }
+    case 'mission': {
+      const g = findG(db, p.gid)
+      if (!g.members.some((x) => x.pid === pid) && g.mentor !== pid) fail('not_member', 403)
+      const w = weekOf(now)
+      g.missions = g.missions || {}
+      if (!g.missions[w]) {
+        const snap = cleanSnap(p.snap)
+        g.missions[w] = { at: now, snap }
+        sysMsg(g, 'mission', snap)
+      }
+      return
+    }
+    case 'mentorTake': {
+      requireAdmin(db, pid)
+      const g = findG(db, p.gid)
+      if (g.mentor) fail('has_mentor')
+      if (db.groups.filter((x) => x.mentor === pid).length >= RULES.MENTOR_MAX) fail('mentor_max')
+      g.mentor = pid
+      g.mentorSnap = cleanSnap(p.snap)
+      sysMsg(g, 'mentor', g.mentorSnap)
+      adminLog(db, pid, 'mentor', g.id)
+      return { id: g.id }
+    }
+    case 'mentorLeave': {
+      const g = findG(db, p.gid)
+      if (g.mentor !== pid) fail('not_member', 403)
+      g.mentor = null
+      sysMsg(g, 'mentorLeft', g.mentorSnap)
+      g.mentorSnap = null
+      return
+    }
+    // ----- events (paid, main revenue) -----
+    case 'eventCreate': {
+      requireAdmin(db, pid) // Korean mentors and the Eoullim team host events
+      const cat = EVENT_CATS.includes(p.cat) ? p.cat : fail('bad_cat')
+      const country = cat === 'country' ? (COUNTRIES.includes(p.country) || p.country === 'kr' ? p.country : fail('bad_country')) : null
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(p.date || '') && p.date >= kstDay(now) ? p.date : fail('bad_date')
+      const time = /^\d{2}:\d{2}$/.test(p.time || '') ? p.time : '18:00'
+      const fee = Number(p.fee)
+      if (!Number.isInteger(fee) || fee < 0 || fee > RULES.MAX_FEE || fee % 100) fail('bad_fee')
+      const cap = Number(p.cap)
+      const min = Number(p.min)
+      if (!Number.isInteger(cap) || cap < 2 || cap > 100 || !Number.isInteger(min) || min < 1 || min > cap) fail('bad_cap')
+      const title = clean(p.title, LIMITS.title)
+      const body = clean(p.body, LIMITS.body, { required: false })
+      if (isBanned(title + ' ' + body)) fail('banned')
+      const e = {
+        id: newId('e'), cat, country, emoji: EVENT_EMOJI.includes(p.emoji) ? p.emoji : '🎉',
+        title: maskText(title).text, body: maskText(body).text, date, time,
+        place: maskText(clean(p.place, LIMITS.place)).text, fee, cap, min,
+        host: pid, hostSnap: cleanSnap(p.snap), hostType: 'mentor', created: now, status: 'open', joined: [],
+      }
+      db.events.unshift(e)
+      adminLog(db, pid, 'event', e.id)
+      return { id: e.id }
+    }
+    case 'eventJoin': {
+      const e = findE(db, p.eid)
+      if (e.status !== 'open' || e.date < kstDay(now)) fail('event_closed')
+      if (e.joined.some((j) => j.pid === pid)) return
+      if (e.joined.length >= e.cap) fail('full')
+      if (e.fee > 0) {
+        // Demo payment: in the real service a payment company charges the card; we only get the result.
+        db.payments.push({ id: newId('pay'), pid, eid: e.id, won: e.fee, commission: Math.round(e.fee * RULES.EVENT_RATE), at: now, status: 'paid', demo: true })
+      }
+      e.joined.push({ pid, snap: cleanSnap(p.snap), at: now })
+      return
+    }
+    case 'eventLeave': {
+      const e = findE(db, p.eid)
+      if (!e.joined.some((j) => j.pid === pid)) return
+      if (e.status === 'open' && now > eventStart(e) - RULES.CANCEL_FREE_D * DAY) fail('late_cancel')
+      e.joined = e.joined.filter((j) => j.pid !== pid)
+      refundEvent(db, e, pid)
+      return
+    }
+    case 'eventCancel': {
+      const e = findE(db, p.eid)
+      if (e.host !== pid) requireAdmin(db, pid)
+      if (e.status !== 'open') fail('event_closed')
+      e.status = 'cancelled'
+      e.cancelReason = 'host'
+      refundEvent(db, e)
+      adminLog(db, pid, 'eventCancel', e.id)
+      return
+    }
     default:
       fail('bad_action')
   }
@@ -396,7 +640,7 @@ function adopt(db, q, aid, thanks, byAdmin) {
   q.closed = Date.now()
   if (byAdmin) q.adoptedBy = 'admin'
   if (thanks) a.thanks = maskText(thanks).text
-  move(db, null, a.author, q.bounty, 'adopted', q.id)
+  if (q.bounty > 0) move(db, null, a.author, q.bounty, 'adopted', q.id)
   return { to: a.author }
 }
 
