@@ -51,9 +51,9 @@ export default function About() {
         </ul>
       ))}
 
-      {block(tx('Privacy by design', '처음부터 개인정보 없이'), (
+      {block(tx('Privacy by design', '개인정보는 최소한으로'), (
         <ul>
-          <li>{tx('No sign-up, no login. No name, student ID, phone or email.', '가입·로그인 없음. 이름·학번·전화·이메일을 받지 않아요.')}</li>
+          <li>{tx('Korean mentors are verified in person by the Eoullim team (student ID check, one code per person).', '한국인 멘토는 어울림 운영팀이 학생증을 직접 확인해 인증해요 (1인 1코드).')}</li>
           <li>{tx('Your country is used only to make your group — never shown on posts.', '나라는 그룹을 만드는 데만 쓰고, 글에는 보이지 않아요.')}</li>
           <li>{tx('Phones, emails and messenger IDs in posts and chat are hidden automatically.', '글과 채팅 속 전화번호·이메일·메신저 ID는 자동으로 가려요.')}</li>
         </ul>
