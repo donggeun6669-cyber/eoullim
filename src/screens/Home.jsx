@@ -28,7 +28,7 @@ export function Welcome() {
           <li><span>🎉</span>{tx('Events: saju, a ghost-story night walk, holidays from every country', '이벤트: 사주, 신당동 귀신 투어, 나라별 명절')}</li>
           <li><span>💬</span>{tx('Community: quick help and meetups — points optional', '커뮤니티: 가벼운 도움과 모임 — 포인트는 선택')}</li>
           <li><span>🌐</span>{tx('Write in any language. Everyone reads it in theirs.', '어떤 언어로 써도 각자 자기 언어로 읽어요.')}</li>
-          <li><span>🔒</span>{tx('No sign-up. No name, email or phone number.', '가입 없음. 이름·이메일·전화번호를 받지 않아요.')}</li>
+          <li><span>🔒</span>{tx('Phone numbers and emails in posts and chats are hidden automatically.', '글·채팅 속 전화번호·이메일은 자동으로 가려요.')}</li>
         </ul>
       </div>
       <button className="btn accent" onClick={() => start().then(() => go('setup')).catch(() => {})}>
