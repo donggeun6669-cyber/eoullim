@@ -151,6 +151,13 @@ export function seedDb(now = Date.now()) {
   const DIL = S('Dilnoza', '🌸', 6), SARAA = S('Saraa', '🦋', 2), TEMU = S('Temuujin', '🦊', 1)
   const HARU = S('Haruto', '⭐', 3), THANDAR = S('Thandar', '🌸', 0), AUNG = S('Aung', '🦉', 5)
 
+  function PH2_MESSAGES() {
+    return [
+      { ...msg(BEA, 'Hi everyone! Bea from Manila 🇵🇭 Wednesday lunch at the student union?', 1480), id: 'mseed2v6a' },
+      { ...msg(CARLO, 'Pwede ako sa Miyerkules! Sana may Korean mentor na tayo soon 😄', 1460), id: 'mseed2v6b' },
+      { ...msg(BEA, 'Excited to meet our 3rd member! 🇵🇭', 300), id: 'mseed2v6c' },
+    ]
+  }
   const groups = [
     g('gseed01', 'ph', 1, [mem(MARIA, 20000), mem(JOSE, 19000), mem(ANA, 18000), mem(PAOLO, 15000)], [JIHUN], [
       msg(JIHUN, '필리핀 1조 여러분, 이번 주 미션은 「서로의 나라 노래 한 곡씩 추천하기」예요 🎵', 4000, true),
@@ -158,13 +165,9 @@ export function seedDb(now = Date.now()) {
       msg(JOSE, 'Hindi ko alam ang Korean songs… Jihun, ano ang paborito mo?', 3850),
       msg(JIHUN, '저는 아이유 「밤편지」요! 다음 모임 때 노래방 가요 🎤', 3800, true),
     ]),
-    g('gseed02', 'ph', 2, [mem(BEA, 3000), mem(CARLO, 2600)], [MINJI], [
-      msg(MINJI, '안녕하세요! 필리핀 2조 멘토 민지예요 😊 이번 주에 학식 같이 먹을래요?', 1500, true),
-      msg(BEA, 'Yes!! Wednesday lunch works for me 🙌', 1480),
-      msg(CARLO, 'Pwede ako sa Miyerkules. Saan tayo magkikita?', 1460),
-      msg(MINJI, '수요일 12시에 학생회관 앞에서 만나요! 새 멤버가 오면 같이 가요 🍚', 1440, true),
-      msg(BEA, 'Excited to meet our 3rd member! 🇵🇭', 300),
-    ]),
+    // v6 (2026-10-03): one mentor per group — Philippines 2 waits for its Korean mentor, so the demo can show
+    // a new student joining and a Korean student becoming the group's mentor.
+    g('gseed02', 'ph', 2, [mem(BEA, 3000), mem(CARLO, 2600)], [], PH2_MESSAGES()),
     g('gseed03', 'vn', 1, [mem(LIN, 25000), mem(HOA, 24000), mem(MINH, 22000), mem(TRANG, 21000)], [SEOYEON], [
       msg(SEOYEON, '베트남 여성의 날 이벤트 열었어요! 이벤트 탭에서 신청해 주세요 💐', 2000, true),
       msg(LIN, 'Ngày 20/10 mình làm bánh mì cùng nhau nhé! 🥖', 1900),
@@ -248,5 +251,5 @@ export function seedDb(now = Date.now()) {
     }),
   ]
 
-  return { v: 5, seededAt: now, devices: {}, questions, posts, groups, events, payments: [], ledger: [], adminLog: [], mentorCodes: [] }
+  return { v: 6, seededAt: now, devices: {}, questions, posts, groups, events, payments: [], ledger: [], adminLog: [], mentorCodes: [] }
 }

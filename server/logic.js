@@ -157,7 +157,7 @@ function migrate4(db) {
 // become example mentors; real unverified Korean friends leave their seat (their interests stay saved) — they
 // can come back after verification. Devices that used the old shared code are the operator team.
 function migrate5(db) {
-  if ((db.v || 0) >= 5) return db
+  if ((db.v || 0) >= 5) return migrate6(db)
   for (const d of Object.values(db.devices)) if (d.admin) d.operator = true
   for (const g of db.groups) {
     if (g.mentors) continue
@@ -179,6 +179,22 @@ function migrate5(db) {
   }
   db.mentorCodes = db.mentorCodes || []
   db.v = 5
+  return migrate6(db)
+}
+// v5 → v6: one mentor per group. The example mentor leaves Philippines 2 so the demo can show a Korean
+// student becoming that group's mentor. Only example (seed) lines change; real members and messages stay.
+function migrate6(db) {
+  if ((db.v || 0) >= 6) return db
+  const g = db.groups.find((x) => x.id === 'gseed02')
+  if (g) {
+    g.mentors = (g.mentors || []).filter((m) => !m.seed)
+    const fresh = seedDb(db.seededAt || Date.now()).groups.find((x) => x.id === 'gseed02')
+    const keep = g.messages.filter((m) => !m.seed || m.system)
+    const start = keep.filter((m) => m.seed && m.system)
+    const rest = keep.filter((m) => !(m.seed && m.system))
+    g.messages = [...start, ...fresh.messages.filter((m) => !m.system), ...rest]
+  }
+  db.v = 6
   return db
 }
 function device(db, pid) {

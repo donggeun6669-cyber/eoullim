@@ -72,7 +72,7 @@ await A.fill('input.input', 'Joy'); await A.W(300);
 await top(A); await shot(A, 'a02_setup');
 await scrollEnd(A); await shot(A, 'a02_setup_end');
 await A.locator('button.btn', { hasText: '조 만나기' }).click(); await A.W(3000);
-await shot(A, 'a03_group');
+await shot(A, 'a03_group_before');
 await tall(A); await shot(A, 'a03_group_tall'); await short(A);
 await go(A, 'home'); await shot(A, 'a04_home');
 await tall(A); await shot(A, 'a04_home_tall'); await short(A);
@@ -94,20 +94,7 @@ await go(A, 'points'); await shot(A, 'a11_points');
 await go(A, 'about'); await shot(A, 'a12_about');
 await tall(A, 2200); await shot(A, 'a12_about_tall'); await short(A);
 
-// v5 (2026-10-03): 한국 학생 = 인증된 멘토. 필리핀 1조(멘토 Jihun)의 두 번째 멘토 자리를 먼저 채운다
-// → 서연은 Joy가 있는 2조로 간다 (멘토가 적은 조 → 학생이 많은 조 순서)
-for (const nick of ['Hyun']) {
-  const X = await device();
-  await X.goto(URL, { waitUntil: 'networkidle' }); await X.W(800);
-  await X.click('text=시작하기 — 무료'); await X.W(600);
-  await X.locator('.option-card', { hasText: '한국 학생' }).click(); await X.W(400);
-  await X.locator('button', { hasText: '데모로 계속' }).click(); await X.W(1500);
-  await X.locator('.country-grid .option-card', { hasText: '필리핀' }).click(); await X.W(300);
-  await X.fill('input.input', nick);
-  await X.locator('button.btn', { hasText: '멘토로 그룹 맡기' }).click();
-  await X.waitForURL(/#\/group/); await X.W(1500);
-  await X.context().close();
-}
+// v6 (2026-10-03): 조당 멘토 1명. 필리핀 2조는 예시 멘토 없이 기다리는 조 → 서연이 그 조의 멘토가 된다
 
 // ── 기기 B: 필리핀에 관심 있는 한국 학생 서연 ──
 const B = await device();
@@ -133,6 +120,8 @@ await A.fill('input[aria-label="메시지"]', 'Hi Seoyeon! Salamat! Gusto ko rin
 await A.locator('.send-btn').click(); await A.W(2500);
 await scrollEnd(A); await A.W(800);
 await shot(A, 'a13_group_chat');
+await go(A, 'group'); await A.evaluate(() => { document.querySelector('.screen').scrollTop = 0; }); await A.W(600);
+await shot(A, 'a03_group'); // 서연이 멘토로 들어온 뒤의 그룹방 (발표 4장·영상 3장면)
 await go(B, 'group'); await B.W(4500); // 번역이 도착할 시간
 await scrollEnd(B); await B.W(800);
 await shot(B, 'b03_group_chat_kr');
