@@ -47,7 +47,7 @@ window.AD_CONFIG = {
     { nick: 'Bea', avatar: '🍀', role: '필리핀' },
     { nick: 'Carlo', avatar: '🐧', role: '필리핀' },
     { nick: 'Joy', avatar: '🐯', role: '필리핀 · 나' },
-    { nick: 'Minji', avatar: '🐯', role: '한국인 멘토', mentor: true },
+    { nick: '서연', avatar: '🦊', role: '한국인 멘토 · 🇵🇭 교환 예정', mentor: true },
     { nick: '서연', avatar: '🦊', role: '한국인 멘토', friend: true },
   ],
   mission: '한국에서 처음 놀랐던 일 하나씩 이야기하기',
