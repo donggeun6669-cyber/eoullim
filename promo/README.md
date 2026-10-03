@@ -8,6 +8,7 @@ DEAN 사본: `03_PROJECTS/AI융합커뮤니티/발표자료/` (`어울림_발표
 | 앱 화면 다시 찍기 | 촬영용 DB로 앱 띄우기 `npm run dev -- --port 5175 --mode promo` (`.env.promo.local`에 `EOULLIM_DB=eoullim/db-promo.json`) → `node promo/tools/capture-screens.mjs` |
 | 발표 PPT (3분 30초, 9장) | `python3 promo/tools/build-deck.py <폴더>` → `soffice --headless --convert-to pdf <폴더>/어울림_발표.pptx` (나눔고딕) |
 | 발표 PPT 5분판 (영상 포함, 10장) | `python3 promo/tools/build-deck.py <폴더> --five` (영상 MP4가 먼저 있어야 함) → 대본 `.md`·`.html`도 같이 생김. HTML은 Chrome으로 PDF 인쇄 |
+| 최종 발표판 (2026-10-03) | 동근님이 드라이브에서 고친 9장이 원본. `python3 promo/tools/add-qr.py <원본> <출력>` (모든 장 QR) → `python3 promo/tools/final-script.py <출력> <폴더>` (노트·대본) → soffice로 PDF |
 | 기능설명 PDF | `node promo/tools/build-guide.mjs <폴더>` → 내부용(멘토 초대 코드 포함) + 공유용 |
 | 영상 미리보기 | `promo/index.html` 더블클릭 (소리는 조작부 버튼) · 특정 시점 `index.html?t=27.5` |
 | 영상 MP4 (무음) | `node promo/tools/render-mp4.mjs` — 한 프레임씩 찍는다, 약 4분 |
@@ -26,9 +27,9 @@ DEAN 사본: `03_PROJECTS/AI융합커뮤니티/발표자료/` (`어울림_발표
 | 시간 | 장면 | 문구 |
 |---|---|---|
 | 0–6 | 문제 | 한국에 온 첫 학기, / 혼자 적응하고 있나요? |
-| 6–14.4 | 시작 | 학교와 나라만 고르면 / 우리 조가 생겨요. |
+| 6–14.4 | 시작 | 학교와 나라만 고르면 / 우리 조가 생겨요. (「가입 없이」는 뺌 — 나중에 가입이 생긴다, 2026-10-03 동근님) |
 | 14.4–22.5 | 우리 조 | 같은 나라 친구 3~4명 / + 한국인 멘토 1명. (+ 이번 주 미션) |
-| 22.5–31 | 한국 친구·번역 | 관심 있는 한국 학생은 / 「한국 친구」로 함께. (Joy 원문 → 서연 화면의 한국어) |
+| 22.5–31 | 한국인 멘토·번역 | 관심 있는 한국 학생은 / 인증된 멘토로 함께. (인증 화면 → 교환학생 갈 예정 → Joy 원문이 서연 화면에서 한국어로) |
 | 31–41 | 이벤트 | 우리 조와 함께 가는 / 이벤트. (Undas → 결제 데모 → 참가 신청 완료) |
 | 41–45 | 커뮤니티 | 가벼운 도움은 / 커뮤니티에서. (성대 공식 안내 먼저) |
 | 45–50 | 마무리 | 어울림 로고 · 한국에서 함께할 우리 조를 만나요. · QR |
