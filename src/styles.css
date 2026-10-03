@@ -496,3 +496,14 @@ input::placeholder, textarea::placeholder { color: var(--placeholder); }
 .kr-card { display: flex; flex-direction: column; gap: 10px; background: #fff; border: 1.5px solid var(--night); }
 .mentor-note { background: var(--navy-tint); }
 .member.friend > span:last-child { color: #fff; }
+
+/* Korean mentor verification (v5) */
+.verify-card { display: flex; flex-direction: column; gap: 10px; border: 1.5px solid var(--primary); }
+.verify-card .demo-note { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px dashed var(--line-2); }
+.any-card { width: 100%; margin-bottom: 8px; }
+.option-card .small.need { color: var(--primary-ink); font-weight: 700; }
+.code-show { font-family: ui-monospace, Menlo, monospace; font-size: 20px; font-weight: 700; letter-spacing: 0.06em; text-align: center; padding: 10px; border-radius: 12px; background: var(--primary-tint); color: var(--primary-ink); }
+
+/* Regional groups · exchange tie (v5) */
+.forming-card { display: flex; flex-direction: column; gap: 8px; background: var(--navy-tint); }
+.tie-line { font-size: 12px; margin-top: 6px; display: block; }

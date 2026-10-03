@@ -23,8 +23,8 @@ export function Welcome() {
           {tx('in Korea.', '우리 조를 만나요.')}
         </h1>
         <ul className="welcome-list">
-          <li><span>👥</span>{tx('3–4 friends from your country + 1 Korean mentor = your group. Free, all semester.', '같은 나라 친구 3~4명 + 한국인 멘토 1명 = 우리 조. 한 학기 내내, 무료.')}</li>
-          <li><span>🇰🇷</span>{tx('Korean students who love your country join as Korean friends', '내 나라에 관심 있는 한국 학생이 「한국 친구」로 함께해요')}</li>
+          <li><span>👥</span>{tx('3–4 friends from your country + a verified Korean mentor = your group. Free, all semester.', '같은 나라 친구 3~4명 + 인증된 한국인 멘토 = 우리 조. 한 학기 내내, 무료.')}</li>
+          <li><span>🇰🇷</span>{tx('Korean students who love your country look after your group as verified mentors', '내 나라에 관심 있는 한국 학생이 인증을 받고 멘토로 우리 조를 맡아요')}</li>
           <li><span>🎉</span>{tx('Events: saju, a ghost-story night walk, holidays from every country', '이벤트: 사주, 신당동 귀신 투어, 나라별 명절')}</li>
           <li><span>💬</span>{tx('Community: quick help and meetups — points optional', '커뮤니티: 가벼운 도움과 모임 — 포인트는 선택')}</li>
           <li><span>🌐</span>{tx('Write in any language. Everyone reads it in theirs.', '어떤 언어로 써도 각자 자기 언어로 읽어요.')}</li>
@@ -48,11 +48,11 @@ function GroupCard() {
   const g = data.myGroups.find((x) => !x.mentoring) || data.myGroups[0]
   if (!g) {
     return (
-      <button className="hero-card group-cta" onClick={() => go(me?.admin ? 'admin' : 'setup')}>
+      <button className="hero-card group-cta" onClick={() => go('setup', me?.mentor ? 'kr' : undefined)}>
         <span className="light-text">{tx('Your group · free', '우리 조 · 무료')}</span>
-        <b className="h2">{me?.admin ? tx('Take a group as a Korean mentor', '한국인 멘토로 그룹 맡기') : tx('Meet your group', '내 그룹 만나기')}</b>
-        <span className="light-text">{tx('3–4 students from the same country + 1 Korean mentor, all semester.', '같은 나라 3~4명 + 한국인 멘토 1명, 한 학기 내내.')}</span>
-        <span className="btn accent xs" style={{ alignSelf: 'flex-start' }}>{me?.admin ? tx('Mentor page', '멘토 화면') : tx('Find my group', '내 그룹 찾기')} →</span>
+        <b className="h2">{me?.mentor ? tx('Take a group as a Korean mentor', '한국인 멘토로 그룹 맡기') : tx('Meet your group', '내 그룹 만나기')}</b>
+        <span className="light-text">{tx('3–4 students from the same country + a verified Korean mentor, all semester.', '같은 나라 3~4명 + 인증된 한국인 멘토, 한 학기 내내.')}</span>
+        <span className="btn accent xs" style={{ alignSelf: 'flex-start' }}>{me?.mentor ? tx('Find a group to mentor', '맡을 그룹 찾기') : tx('Find my group', '내 그룹 찾기')} →</span>
       </button>
     )
   }
@@ -64,14 +64,13 @@ function GroupCard() {
         <span className="row" style={{ gap: 10 }}>
           <span style={{ fontSize: 30 }}>{flagOf(g)}</span>
           <span className="col">
-            <span className="light-text">{g.mentoring ? tx('I mentor', '내가 멘토') : g.friend ? tx('I’m a Korean friend', '한국 친구로 함께하는 그룹') : tx('My group', '내 그룹')}</span>
+            <span className="light-text">{g.mentoring ? tx('I mentor', '내가 멘토인 그룹') : tx('My group', '내 그룹')}</span>
             <b className="h2">{gn(g)}</b>
           </span>
         </span>
         <span className="avatar-stack">
           {g.members.slice(0, 4).map((m, i) => <Avatar key={i} snap={m.snap} size={28} />)}
-          {g.friends.map((f, i) => <Avatar key={'f' + i} snap={f.snap} size={28} />)}
-          {g.hasMentor && <Avatar snap={g.mentor} size={28} />}
+          {g.mentors.map((m, i) => <Avatar key={'k' + i} snap={m.snap} size={28} />)}
         </span>
       </span>
       {lastMsg && (
@@ -88,17 +87,19 @@ function GroupCard() {
 function KoreanCard() {
   const { data, me, tx, L, go } = useApp()
   const kr = me?.kr
-  if (!kr) return null
+  if (!kr || !me?.mentor) return null
   const kstyle = data.questions.filter((q) => q.tag === 'kstyle' && q.status === 'open' && !q.mine).length
   return (
     <div className="card kr-card">
       <span className="row" style={{ justifyContent: 'space-between' }}>
-        <b>🇰🇷 {tx('Korean student · countries I follow', '한국 학생 · 내가 관심 있는 나라')}</b>
+        <b>🇰🇷 {tx(`Korean mentor${me.demoMentor ? ' (demo)' : ''} · countries I follow`, `한국인 멘토${me.demoMentor ? ' (데모)' : ''} · 내가 관심 있는 나라`)}</b>
         <button className="linkish" onClick={() => go('setup', 'kr')}>{tx('Change', '바꾸기')}</button>
       </span>
       <div className="tags">
-        {kr.countries.map((c) => (
-          <span key={c} className="tag gray">{COUNTRIES[c].flag} {L(COUNTRIES[c])} · {tx(`${data.krFans?.[c] || 0} Koreans`, `한국인 ${data.krFans?.[c] || 0}명`)}</span>
+        {kr.countries.map((c) => c === 'any' ? (
+          <span key={c} className="tag gray">🌏 {tx('Any country', '어디든')}</span>
+        ) : (
+          <span key={c} className="tag gray">{COUNTRIES[c].flag} {L(COUNTRIES[c])} · {tx(`${data.krFans?.[c] || 0} mentors`, `멘토 ${data.krFans?.[c] || 0}명`)}</span>
         ))}
       </div>
       {kr.offer?.length > 0 && <span className="small">{tx('I can', '함께할 수 있는 것')}: {kr.offer.map((o) => L(OFFERS[o])).join(' · ')}</span>}
@@ -115,7 +116,7 @@ export default function Home() {
   if (!data) return <div className="screen"><Loading /><TabBar current="home" /></div>
 
   const myG = data.myGroups.find((g) => !g.mentoring)
-  const likes = me?.kr?.countries || (myG ? [myG.country] : [])
+  const likes = (me?.kr?.countries || []).filter((c) => c !== 'any').concat(myG ? [myG.country] : [])
   const events = data.events
     .filter((e) => e.status === 'open' && e.joined < e.cap)
     .sort((a, b) => likes.includes(b.country) - likes.includes(a.country) || a.start - b.start)

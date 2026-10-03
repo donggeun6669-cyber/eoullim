@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import Icon from './Icon.jsx'
 import { useApp } from '../store.jsx'
-import { APP_LANGS, BOARDS, COLORS, COUNTRIES, KINDS, LEVELS, SCHOOLS, STATUS, TAGS, groupName } from '../i18n.js'
+import { APP_LANGS, BOARDS, COLORS, COUNTRIES, KINDS, LEVELS, REGIONS, SCHOOLS, STATUS, TAGS, groupName } from '../i18n.js'
 
 export function TopBar({ title, sub, right, onBack }) {
   const { back, tx } = useApp()
@@ -82,7 +82,7 @@ export function useGroupName() {
   const { tx } = useApp()
   return (g) => (g ? tx(groupName(g, 'en'), groupName(g, 'ko')) : '')
 }
-export const flagOf = (g) => (COUNTRIES[g?.country] || COUNTRIES.other).flag
+export const flagOf = (g) => (COUNTRIES[g?.country] || REGIONS[g?.country] || COUNTRIES.other).flag
 
 // Where am I? Shown at the top of every screen: school › board, and my group.
 const PLACES = {
@@ -127,13 +127,11 @@ export function Belong() {
         </span>
       </button>
       {myGroup ? (
-        <button className="belong-group" onClick={() => go('group')}>{flagOf(myGroup)} {gn(myGroup)}{myGroup.friend ? ` · ${tx('Korean friend', '한국 친구')}` : ''}</button>
-      ) : me?.kr ? (
-        <button className="belong-group" onClick={() => go('setup', 'kr')}>🇰🇷 {tx('Korean student', '한국 학생')} · {me.kr.countries.map((c) => COUNTRIES[c]?.flag).join('')}</button>
+        <button className="belong-group" onClick={() => go('group')}>{flagOf(myGroup)} {gn(myGroup)}</button>
       ) : mentoring.length ? (
-        <button className="belong-group" onClick={() => go('group')}>🇰🇷 {tx('Mentor', '멘토')} · {gn(mentoring[0])}</button>
-      ) : me?.admin ? (
-        <button className="belong-group" onClick={() => go('admin')}>🇰🇷 {tx('Mentor', '멘토')}</button>
+        <button className="belong-group" onClick={() => go('group')}>{flagOf(mentoring[0])} {gn(mentoring[0])} · {tx('Mentor', '멘토')}</button>
+      ) : me?.mentor ? (
+        <button className="belong-group" onClick={() => go('setup', 'kr')}>🇰🇷 {tx('Mentor', '멘토')}{me.kr ? ` · ${me.kr.countries.map((c) => (c === 'any' ? '🌏' : COUNTRIES[c]?.flag)).join('')}` : ''}</button>
       ) : (
         <button className="belong-group ghost" onClick={() => go('setup')}>+ {tx('Find my group', '내 그룹 찾기')}</button>
       )}

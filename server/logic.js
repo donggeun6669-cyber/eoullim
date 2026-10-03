@@ -1,6 +1,10 @@
 // Eoullim v3 server rules. Pure functions over one JSON document (db).
 // v3 (2026-10-01): groups (same country 3–4 + one Korean mentor, free) · paid events (main revenue, fee commission)
 // · one Community board where points on a question are optional (secondary revenue).
+// v5 (2026-10-03 동근님): every Korean student in a group is a verified, paid mentor (no unverified "Korean friend").
+// Verification: the operator checks a student ID offline and issues a one-person, one-time code in the app.
+// Demo (2026-10-03 동근님 「지금은 데모니까 명시만」): a Korean student can also continue without a code as a
+// "demo mentor" — a group seat and chat only, no moderation, refunds, events or money.
 // No accounts: a device holds a random key; we only ever store a hash of it (pid).
 import crypto from 'node:crypto'
 import { seedDb } from './seed.js'
@@ -16,11 +20,12 @@ export const RULES = {
   ADMIN_POOL_RATE: 0.3,
   PACKS: [10, 30, 50, 100], // points; price = points × 100원
   // groups (free)
-  GROUP_CAP: 4, // students per group (+ 1 Korean mentor)
+  GROUP_CAP: 4, // students per group (+ Korean mentors)
   GROUP_START: 3, // a group "starts" at 3 students
-  FRIEND_CAP: 2, // Korean friends per group (besides the mentor) — 2026-10-01 mentoring feedback
-  KR_INTERESTS: 3, // countries a Korean student can follow
+  MENTOR_CAP: 1, // verified Korean mentors per group — 2026-10-03 최종 발표자료 「외국인 학생 3~4명, 한국인 1명」
+  KR_INTERESTS: 3, // countries a Korean mentor can follow
   MENTOR_MAX: 3, // groups one mentor can look after
+  REGION_WAIT_D: 7, // a country group still under GROUP_START after this many days moves to a regional group (2026-10-03)
   // events (main revenue)
   EVENT_RATE: 0.15, // Eoullim keeps 15% of each fee; 85% is the host's budget to run the event
   CANCEL_FREE_D: 2, // free cancellation until 2 days before
@@ -36,6 +41,17 @@ export const BOARDS = ['together', 'free', 'l-en', 'l-zh', 'l-vi', 'l-uz', 'l-mn
 export const SCHOOLS = ['skku', 'handong', 'cnu', 'other']
 export const COUNTRIES = ['ph', 'vn', 'cn', 'jp', 'uz', 'mn', 'mm', 'id', 'th', 'np', 'us', 'fr', 'de', 'other']
 export const EVENT_CATS = ['korea', 'country', 'group']
+// Regional groups for countries with few students (2026-10-03 동근님: 기다렸다가 지역권 조). Claude's grouping, changeable.
+export const REGIONS = {
+  'r-ea': ['cn', 'jp'],
+  'r-sea': ['ph', 'vn', 'mm', 'id', 'th'],
+  'r-sca': ['uz', 'mn', 'np'],
+  'r-west': ['us', 'fr', 'de'],
+  'r-world': ['other'],
+}
+export const regionOf = (c) => Object.keys(REGIONS).find((r) => REGIONS[r].includes(c)) || 'r-world'
+const isRegion = (c) => String(c).startsWith('r-')
+const TIES = ['going', 'been'] // Korean mentor: going on exchange to that country / has been there
 const EVENT_EMOJI = ['🔮', '👻', '👘', '🏯', '🍜', '🎤', '🎨', '🏆', '⚽', '💐', '🕯️', '🍚', '🎉', '🏮', '🥟', '🍲', '✍️', '⛰️']
 // Korea time helpers: event dates are written in KST.
 const kstDay = (now, plus = 0) => new Date(now + plus * DAY + 9 * HOUR).toISOString().slice(0, 10)
@@ -119,7 +135,7 @@ export function migrate(db) {
 }
 // v3 → v4: Korean friends. Every group gets an empty friends list; the Vietnam example group gets one example friend.
 function migrate4(db) {
-  if ((db.v || 0) >= 4) return db
+  if ((db.v || 0) >= 4) return migrate5(db)
   const s = seedDb(db.seededAt || Date.now())
   for (const g of db.groups) {
     g.friends = g.friends || []
@@ -135,6 +151,34 @@ function migrate4(db) {
     }
   }
   db.v = 4
+  return migrate5(db)
+}
+// v4 → v5: one list of verified Korean mentors per group. The old single mentor stays; example "Korean friends"
+// become example mentors; real unverified Korean friends leave their seat (their interests stay saved) — they
+// can come back after verification. Devices that used the old shared code are the operator team.
+function migrate5(db) {
+  if ((db.v || 0) >= 5) return db
+  for (const d of Object.values(db.devices)) if (d.admin) d.operator = true
+  for (const g of db.groups) {
+    if (g.mentors) continue
+    const mentors = []
+    if (g.mentor) mentors.push({ pid: g.mentor, snap: g.mentorSnap || null, seed: String(g.mentor).startsWith('seed-') || undefined })
+    for (const f of g.friends || []) {
+      if ((f.seed || db.devices[f.pid]?.admin) && mentors.length < RULES.MENTOR_CAP && !mentors.some((m) => m.pid === f.pid)) mentors.push({ ...f })
+      else if (f.seed) g.messages = g.messages.filter((m) => m.author !== f.pid) // example friend with no seat: drop its example lines
+      else sysMsg(g, 'leave', f.snap)
+    }
+    for (const m of g.messages) if (m.friend) {
+      m.mentor = true
+      delete m.friend
+    }
+    g.mentors = mentors
+    delete g.mentor
+    delete g.mentorSnap
+    delete g.friends
+  }
+  db.mentorCodes = db.mentorCodes || []
+  db.v = 5
   return db
 }
 function device(db, pid) {
@@ -160,15 +204,55 @@ function move(db, fromPid, toPid, amount, reason, ref) {
 }
 const findG = (db, id) => (db.groups || []).find((g) => g.id === id) || fail('not_found', 404)
 const findE = (db, id) => (db.events || []).find((e) => e.id === id) || fail('not_found', 404)
-const inGroup = (g, pid) => g.members.some((m) => m.pid === pid) || (g.friends || []).some((m) => m.pid === pid)
+// A student's own group (members only). Mentors look after groups instead (g.mentors).
+const inGroup = (g, pid) => g.members.some((m) => m.pid === pid)
+const isMentorOf = (g, pid) => (g.mentors || []).some((m) => m.pid === pid)
 const findMyGroup = (db, pid) => (db.groups || []).find((g) => inGroup(g, pid))
+const mentorCount = (db, pid) => (db.groups || []).filter((g) => isMentorOf(g, pid)).length
+// Verification codes: shown once to the operator, stored only as a hash.
+const CODE_ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+const normCode = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+const codeHash = (c) => crypto.createHash('sha256').update('eoullim-mentor:' + normCode(c)).digest('hex').slice(0, 16)
+// Move a whole forming country group into a regional group (they stay together). The country group is left
+// empty and is reused when a new student from that country arrives.
+function moveToRegion(db, g, now) {
+  const region = regionOf(g.country)
+  const movers = g.members
+  const same = db.groups.filter((x) => x.school === g.school && x.country === region).sort((a, b) => a.n - b.n)
+  let r = same.find((x) => x.members.length + movers.length <= RULES.GROUP_CAP)
+  if (!r) {
+    r = { id: newId('g'), school: g.school, country: region, n: (same.at(-1)?.n || 0) + 1, created: now, members: [], mentors: [], messages: [], missions: {} }
+    db.groups.push(r)
+  }
+  const before = r.members.length
+  for (const m of movers) {
+    r.members.push({ ...m, joined: now, from: g.id })
+    sysMsg(r, 'joinRegion', m.snap)
+  }
+  if (before < RULES.GROUP_START && r.members.length >= RULES.GROUP_START) sysMsg(r, 'start', null)
+  g.members = []
+  sysMsg(g, 'movedRegion', null)
+  return r
+}
+function removeMentorSeats(db, pid) {
+  for (const g of db.groups) {
+    const m = (g.mentors || []).find((x) => x.pid === pid)
+    if (!m) continue
+    g.mentors = g.mentors.filter((x) => x !== m)
+    sysMsg(g, 'mentorLeft', m.snap)
+  }
+}
 const OFFERS = ['language', 'life', 'hangout']
-function sysMsg(g, type, snap) {
-  g.messages.push({ id: newId('m'), system: type, snap: snap || null, body: '', created: Date.now() })
+function sysMsg(g, type, snap, extra) {
+  g.messages.push({ id: newId('m'), system: type, snap: snap || null, body: '', created: Date.now(), ...(extra ? { extra } : {}) })
 }
 const findQ = (db, id) => db.questions.find((q) => q.id === id) || fail('not_found', 404)
 const findP = (db, id) => db.posts.find((p) => p.id === id) || fail('not_found', 404)
 const requireAdmin = (db, pid) => device(db, pid).admin || fail('not_admin', 403)
+// Mentor seat in groups: verified mentors and demo mentors (demo = no code yet, no admin powers).
+const isMentorDevice = (d) => !!(d?.admin || d?.demoMentor)
+const requireMentor = (db, pid) => isMentorDevice(device(db, pid)) || fail('not_admin', 403)
+const ANY = 'any' // Korean mentor: "any country — groups that need a mentor first"
 const adminLog = (db, pid, type, ref) => db.adminLog.push({ pid, type, ref, at: Date.now() })
 const liveAnswers = (q) => q.answers.filter((a) => !a.hidden)
 
@@ -190,6 +274,14 @@ export function sweep(db, now = Date.now()) {
       changed = true
     } else if (liveAnswers(q).length > 0 && age > RULES.REVIEW_AFTER_D * 24 * HOUR) {
       q.status = 'review'
+      changed = true
+    }
+  }
+  // Groups: a country group that is still forming after REGION_WAIT_D days moves into a regional group.
+  for (const g of db.groups || []) {
+    if (g.seed || isRegion(g.country) || !g.members.length || g.members.length >= RULES.GROUP_START) continue
+    if (now - (g.formingSince || g.created || now) > RULES.REGION_WAIT_D * DAY) {
+      moveToRegion(db, g, now)
       changed = true
     }
   }
@@ -270,34 +362,33 @@ export function view(db, pid, now = Date.now()) {
   // ----- groups: everyone sees the directory; only members and the mentor see the chat -----
   const groups = db.groups || []
   const groupOfPid = {}
-  for (const g of groups) for (const m of [...g.members, ...(g.friends || [])]) groupOfPid[m.pid] = g
+  for (const g of groups) for (const m of g.members) groupOfPid[m.pid] = g
   const myGroup = groupOfPid[pid] || null
-  const amFriend = !!myGroup && (myGroup.friends || []).some((m) => m.pid === pid)
-  // How many Korean students follow each country (real devices + example friends).
+  // How many verified Korean mentors follow each country (real devices + example mentors).
   const krFans = {}
-  for (const d of Object.values(db.devices)) for (const c of d.kr?.countries || []) krFans[c] = (krFans[c] || 0) + 1
-  for (const g of groups) for (const f of g.friends || []) if (f.seed) krFans[g.country] = (krFans[g.country] || 0) + 1
+  for (const d of Object.values(db.devices)) if (isMentorDevice(d)) for (const c of d.kr?.countries || []) if (c !== ANY) krFans[c] = (krFans[c] || 0) + 1
+  for (const g of groups) for (const m of g.mentors || []) if (m.seed) krFans[g.country] = (krFans[g.country] || 0) + 1
   const gname = (g) => ({ id: g.id, school: g.school, country: g.country, n: g.n })
   const week = weekOf(now)
   const groupDir = groups.map((g) => ({
-    ...gname(g), members: g.members.length, mentor: g.mentorSnap || (g.mentor ? {} : null),
-    hasMentor: !!g.mentor, mine: g === myGroup, mentoring: g.mentor === pid,
-    friends: (g.friends || []).length, friendSeats: RULES.FRIEND_CAP - (g.friends || []).length,
+    ...gname(g), members: g.members.length, mentors: (g.mentors || []).length,
+    hasMentor: (g.mentors || []).length > 0, mine: g === myGroup, mentoring: isMentorOf(g, pid),
+    mentorSeats: RULES.MENTOR_CAP - (g.mentors || []).length,
   }))
   const myGroups = groups
-    .filter((g) => g === myGroup || (g.mentor && g.mentor === pid))
+    .filter((g) => g === myGroup || isMentorOf(g, pid))
     .map((g) => ({
       ...gname(g),
-      mentoring: g.mentor === pid,
-      friend: g === myGroup && amFriend,
-      friends: (g.friends || []).map((m) => ({ snap: m.snap, me: m.pid === pid })),
-      mentor: g.mentor ? g.mentorSnap || null : null,
-      hasMentor: !!g.mentor,
-      members: g.members.map((m) => ({ snap: m.snap, me: m.pid === pid, joined: m.seed ? now - (m.ageMin || 0) * 60e3 : m.joined })),
+      mentoring: isMentorOf(g, pid),
+      mentors: (g.mentors || []).map((m) => ({ snap: m.snap, me: m.pid === pid, tie: m.tie || null, tieCountry: m.tieCountry || null })),
+      region: isRegion(g.country) ? REGIONS[g.country] : null,
+      formingSince: g.formingSince || g.created || null,
+      hasMentor: (g.mentors || []).length > 0,
+      members: g.members.map((m) => ({ snap: m.snap, me: m.pid === pid, country: m.country || (isRegion(g.country) ? null : g.country), joined: m.seed ? now - (m.ageMin || 0) * 60e3 : m.joined })),
       missionDone: !!g.missions?.[week],
       missionBy: g.missions?.[week]?.snap || null,
       messages: g.messages.slice(-120).map((m) => ({
-        id: m.id, body: m.body, snap: m.snap, mentor: !!m.mentor, friend: !!m.friend, system: m.system || null,
+        id: m.id, body: m.body, snap: m.snap, mentor: !!m.mentor, system: m.system || null, extra: m.extra || null,
         created: at(m), mine: m.author === pid, seed: !!m.seed,
       })),
     }))
@@ -330,7 +421,7 @@ export function view(db, pid, now = Date.now()) {
     now,
     week,
     rules: RULES,
-    me: me ? { pid, points: me.points, admin: isAdmin, adopted: counts[pid] || 0, level: lv(pid), group: myGroup ? gname(myGroup) : null, kr: me.kr || null, friend: amFriend } : null,
+    me: me ? { pid, points: me.points, admin: isAdmin, operator: !!me.operator, verified: isAdmin, mentor: isMentorDevice(me), demoMentor: !!me.demoMentor && !isAdmin, adopted: counts[pid] || 0, level: lv(pid), group: myGroup ? gname(myGroup) : null, country: myGroup ? myGroup.members.find((m) => m.pid === pid)?.country || (isRegion(myGroup.country) ? null : myGroup.country) : null, kr: me.kr || null, mentorGroups: groups.filter((g) => isMentorOf(g, pid)).length } : null,
     krFans,
     questions,
     posts,
@@ -341,6 +432,11 @@ export function view(db, pid, now = Date.now()) {
     ledger: db.ledger.filter((l) => l.pid === pid).slice(-60).reverse(),
   }
   if (isAdmin) out.adminStats = adminStats(db)
+  if (me?.operator) {
+    out.mentorCodes = (db.mentorCodes || []).slice().reverse().map((c) => ({
+      id: c.id, label: c.label, hint: c.hint, created: c.created, used: !!c.usedBy, usedAt: c.usedAt || null, revoked: !!c.revoked,
+    }))
+  }
   return out
 }
 
@@ -492,13 +588,59 @@ export function apply(db, pid, action, p = {}, env = {}) {
       ledger(db, pid, pts, 'charge', null, { won: pts * RULES.WON_PER_POINT, demo: true })
       return
     }
+    // Verification. The shared ADMIN_CODE is the operator team's code; every Korean mentor gets a personal,
+    // one-time code from the operator (after checking a student ID offline). Nothing about the person is stored here.
     case 'adminClaim': {
-      if (!env.ADMIN_CODE || p.code !== env.ADMIN_CODE) fail('bad_code', 403)
-      device(db, pid).admin = true
+      const d = device(db, pid)
+      if (findMyGroup(db, pid)) fail('in_group') // an international student in a group can't become a mentor
+      if (env.ADMIN_CODE && normCode(p.code) === normCode(env.ADMIN_CODE)) {
+        d.admin = true
+        d.operator = true
+        return
+      }
+      const h = codeHash(p.code)
+      const c = (db.mentorCodes || []).find((x) => x.hash === h && !x.revoked)
+      if (!c || (c.usedBy && c.usedBy !== pid)) fail('bad_code', 403)
+      c.usedBy = pid
+      c.usedAt = c.usedAt || now
+      d.admin = true
+      d.verifiedBy = c.id
       return
     }
     case 'adminLeave': {
-      device(db, pid).admin = false
+      const d = device(db, pid)
+      removeMentorSeats(db, pid)
+      d.admin = false
+      d.operator = false
+      d.demoMentor = false
+      return
+    }
+    case 'mentorDemo': {
+      const d = device(db, pid)
+      if (findMyGroup(db, pid)) fail('in_group')
+      d.demoMentor = true
+      return
+    }
+    case 'codeCreate': {
+      if (!device(db, pid).operator) fail('not_operator', 403)
+      const label = maskText(clean(p.label, 40)).text
+      const r = crypto.randomBytes(8)
+      const raw = [...r].map((x) => CODE_ALPH[x % 32]).join('')
+      const code = `MT-${raw.slice(0, 4)}-${raw.slice(4, 8)}`
+      db.mentorCodes = db.mentorCodes || []
+      db.mentorCodes.push({ id: newId('mc'), hash: codeHash(code), hint: raw.slice(4, 8), label, created: now, by: pid, usedBy: null, revoked: false })
+      adminLog(db, pid, 'code', null)
+      return { code }
+    }
+    case 'codeRevoke': {
+      if (!device(db, pid).operator) fail('not_operator', 403)
+      const c = (db.mentorCodes || []).find((x) => x.id === p.id) || fail('not_found', 404)
+      c.revoked = true
+      const d = c.usedBy && db.devices[c.usedBy]
+      if (d && d.verifiedBy === c.id) {
+        removeMentorSeats(db, c.usedBy)
+        d.admin = false
+      }
       return
     }
     // ----- admin only -----
@@ -541,78 +683,89 @@ export function apply(db, pid, action, p = {}, env = {}) {
     // ----- groups (free) -----
     case 'joinGroup': {
       if (findMyGroup(db, pid)) fail('in_group')
-      if (device(db, pid).admin) fail('mentor_no_join')
+      if (isMentorDevice(device(db, pid))) fail('mentor_no_join')
       if (device(db, pid).kr) fail('kr_student')
       const school = SCHOOLS.includes(p.school) ? p.school : fail('bad_school')
       const country = COUNTRIES.includes(p.country) ? p.country : fail('bad_country')
       const same = db.groups.filter((g) => g.school === school && g.country === country).sort((a, b) => a.n - b.n)
       let g = same.find((x) => x.members.length < RULES.GROUP_CAP)
       if (!g) {
-        g = { id: newId('g'), school, country, n: (same.at(-1)?.n || 0) + 1, created: now, members: [], mentor: null, mentorSnap: null, messages: [], missions: {} }
+        g = { id: newId('g'), school, country, n: (same.at(-1)?.n || 0) + 1, created: now, members: [], mentors: [], messages: [], missions: {} }
         db.groups.push(g)
       }
       const snap = cleanSnap(p.snap)
-      g.members.push({ pid, snap, joined: now })
+      if (!g.members.length) g.formingSince = now // an emptied group starts waiting again
+      g.members.push({ pid, snap, joined: now, country })
       sysMsg(g, 'join', snap)
       if (g.members.length === RULES.GROUP_START) sysMsg(g, 'start', null)
       return { id: g.id }
     }
+    case 'joinRegion': {
+      // "Start now with nearby countries": the whole forming group moves together.
+      const g = findMyGroup(db, pid) || fail('no_group')
+      if (isRegion(g.country) || g.members.length >= RULES.GROUP_START) fail('not_forming')
+      const r = moveToRegion(db, g, now)
+      return { id: r.id }
+    }
     case 'leaveGroup': {
       const g = findMyGroup(db, pid) || fail('no_group')
-      const m = [...g.members, ...(g.friends || [])].find((x) => x.pid === pid)
+      const m = g.members.find((x) => x.pid === pid)
       g.members = g.members.filter((x) => x !== m)
-      g.friends = (g.friends || []).filter((x) => x !== m)
       sysMsg(g, 'leave', m.snap)
       return
     }
-    // ----- Korean friends (free): Korean students who are interested in a country -----
-    // Not 1:1 matching: they join a group from a country they follow, up to 2 per group.
+    // ----- Korean mentors (verified, paid): countries they follow, then a group from those countries -----
+    // Not 1:1 matching: a mentor joins a group (one mentor per group, up to 3 groups per mentor).
     case 'krSet': {
+      requireMentor(db, pid)
       const d = device(db, pid)
-      if (d.admin) fail('mentor_no_join')
-      const countries = [...new Set((Array.isArray(p.countries) ? p.countries : []).filter((c) => COUNTRIES.includes(c) && c !== 'other'))].slice(0, RULES.KR_INTERESTS)
+      const countries = [...new Set((Array.isArray(p.countries) ? p.countries : []).filter((c) => c === ANY || (COUNTRIES.includes(c) && c !== 'other')))].slice(0, RULES.KR_INTERESTS)
       if (!countries.length) fail('bad_country')
-      if (findMyGroup(db, pid) && !findMyGroup(db, pid).friends?.some((m) => m.pid === pid)) fail('in_group') // a foreign student can't switch
-      d.kr = { countries, offer: (Array.isArray(p.offer) ? p.offer : []).filter((o) => OFFERS.includes(o)), school: SCHOOLS.includes(p.school) ? p.school : 'skku' }
+      d.kr = {
+        countries, offer: (Array.isArray(p.offer) ? p.offer : []).filter((o) => OFFERS.includes(o)), school: SCHOOLS.includes(p.school) ? p.school : 'skku',
+        tie: TIES.includes(p.tie) ? p.tie : null, // going on exchange to / has been to the first country picked
+      }
       return
     }
     case 'krJoin': {
+      requireMentor(db, pid)
       const d = device(db, pid)
       if (!d.kr) fail('bad_country')
-      if (findMyGroup(db, pid)) fail('in_group')
-      // A group from my countries (in my order of interest) with a free friend seat; groups that started first.
+      if (mentorCount(db, pid) >= RULES.MENTOR_MAX) fail('mentor_max')
+      // A group from my countries (in my order of interest) with a free mentor seat: groups without a mentor first,
+      // then bigger groups. Only groups that have students (an emptied group waits for a student).
       let g = null
       for (const c of d.kr.countries) {
         g = db.groups
-          // only groups that have students (a group everyone left stays empty until a student joins again)
-          .filter((x) => x.school === d.kr.school && x.country === c && x.members.length > 0 && (x.friends || []).length < RULES.FRIEND_CAP)
-          .sort((a, b) => b.members.length - a.members.length || a.n - b.n)[0]
+          .filter((x) => x.school === d.kr.school && (c === ANY || x.country === c || REGIONS[x.country]?.includes(c)) && x.members.length > 0 && (x.mentors || []).length < RULES.MENTOR_CAP && !isMentorOf(x, pid))
+          .sort((a, b) => (a.mentors || []).length - (b.mentors || []).length || b.members.length - a.members.length || a.n - b.n)[0]
         if (g) break
       }
       if (!g) fail('no_seat')
       const snap = cleanSnap(p.snap)
-      g.friends = g.friends || []
-      g.friends.push({ pid, snap, joined: now })
-      sysMsg(g, 'friend', snap)
+      // "going on exchange / has been" applies to the first country picked; shown when it matches this group
+      const tieCountry = d.kr.tie && d.kr.countries[0] !== ANY && (g.country === d.kr.countries[0] || REGIONS[g.country]?.includes(d.kr.countries[0])) ? d.kr.countries[0] : null
+      g.mentors = g.mentors || []
+      g.mentors.push({ pid, snap, joined: now, ...(tieCountry ? { tie: d.kr.tie, tieCountry } : {}) })
+      sysMsg(g, 'mentor', snap, tieCountry ? { tie: d.kr.tie, country: tieCountry } : null)
+      if (d.admin) adminLog(db, pid, 'mentor', g.id) // demo mentors are not paid
       return { id: g.id }
     }
     case 'groupMsg': {
       const g = findG(db, p.gid)
       const member = g.members.find((x) => x.pid === pid)
-      const friend = (g.friends || []).find((x) => x.pid === pid)
-      const isMentor = g.mentor === pid
-      if (!member && !friend && !isMentor) fail('not_member', 403)
+      const mentor = (g.mentors || []).find((x) => x.pid === pid)
+      if (!member && !mentor) fail('not_member', 403)
       const snap = cleanSnap(p.snap)
       if (member && snap) member.snap = snap
-      if (friend && snap) friend.snap = snap
-      if (isMentor && snap) g.mentorSnap = snap
-      g.messages.push({ id: newId('m'), author: pid, snap, mentor: isMentor, friend: !!friend, body: maskText(clean(p.body, LIMITS.msg)).text, created: now })
+      if (mentor && snap) mentor.snap = snap
+      g.messages.push({ id: newId('m'), author: pid, snap, mentor: !!mentor, body: maskText(clean(p.body, LIMITS.msg)).text, created: now })
       if (g.messages.length > 400) g.messages.splice(0, g.messages.length - 400)
       return
     }
     case 'mission': {
       const g = findG(db, p.gid)
-      if (!inGroup(g, pid) && g.mentor !== pid) fail('not_member', 403)
+      if (!inGroup(g, pid) && !isMentorOf(g, pid)) fail('not_member', 403)
       const w = weekOf(now)
       g.missions = g.missions || {}
       if (!g.missions[w]) {
@@ -623,23 +776,24 @@ export function apply(db, pid, action, p = {}, env = {}) {
       return
     }
     case 'mentorTake': {
-      requireAdmin(db, pid)
+      requireMentor(db, pid)
       const g = findG(db, p.gid)
-      if (g.mentor) fail('has_mentor')
+      if (isMentorOf(g, pid)) return { id: g.id }
+      if ((g.mentors || []).length >= RULES.MENTOR_CAP) fail('has_mentor')
       if (!g.members.length) fail('empty_group')
-      if (db.groups.filter((x) => x.mentor === pid).length >= RULES.MENTOR_MAX) fail('mentor_max')
-      g.mentor = pid
-      g.mentorSnap = cleanSnap(p.snap)
-      sysMsg(g, 'mentor', g.mentorSnap)
-      adminLog(db, pid, 'mentor', g.id)
+      if (mentorCount(db, pid) >= RULES.MENTOR_MAX) fail('mentor_max')
+      const snap = cleanSnap(p.snap)
+      g.mentors = g.mentors || []
+      g.mentors.push({ pid, snap, joined: now })
+      sysMsg(g, 'mentor', snap)
+      if (device(db, pid).admin) adminLog(db, pid, 'mentor', g.id)
       return { id: g.id }
     }
     case 'mentorLeave': {
       const g = findG(db, p.gid)
-      if (g.mentor !== pid) fail('not_member', 403)
-      g.mentor = null
-      sysMsg(g, 'mentorLeft', g.mentorSnap)
-      g.mentorSnap = null
+      const m = (g.mentors || []).find((x) => x.pid === pid) || fail('not_member', 403)
+      g.mentors = g.mentors.filter((x) => x !== m)
+      sysMsg(g, 'mentorLeft', m.snap)
       return
     }
     // ----- events (paid, main revenue) -----
@@ -685,6 +839,27 @@ export function apply(db, pid, action, p = {}, env = {}) {
       if (e.status === 'open' && now > eventStart(e) - RULES.CANCEL_FREE_D * DAY) fail('late_cancel')
       e.joined = e.joined.filter((j) => j.pid !== pid)
       refundEvent(db, e, pid)
+      return
+    }
+    // Demo reset ("start from the beginning"): free every seat this device holds so the demo groups look
+    // like before — student / mentor seats and event sign-ups (paid ones refunded).
+    // Posts, answers, points and verification stay with the old code, which can still be restored.
+    case 'resetMe': {
+      for (const g of db.groups) {
+        const m = g.members.find((x) => x.pid === pid)
+        if (m) {
+          g.members = g.members.filter((x) => x !== m)
+          sysMsg(g, 'leave', m.snap)
+        }
+      }
+      removeMentorSeats(db, pid)
+      device(db, pid).demoMentor = false
+      for (const e of db.events) {
+        if (!e.joined.some((j) => j.pid === pid)) continue
+        e.joined = e.joined.filter((j) => j.pid !== pid)
+        refundEvent(db, e, pid)
+      }
+      delete device(db, pid).kr
       return
     }
     case 'eventCancel': {

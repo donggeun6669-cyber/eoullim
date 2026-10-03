@@ -28,6 +28,14 @@ export function setKey(k) {
   }
   memKey = k
 }
+export function clearKey() {
+  try {
+    localStorage.removeItem(KEY)
+  } catch {
+    /* storage blocked */
+  }
+  memKey = null
+}
 let memKey = null
 export const currentKey = () => getKey() || memKey
 

@@ -2,19 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import Icon from '../components/Icon.jsx'
 import { Avatar, Loading, TabBar, Tr, ago, flagOf, markSeen, useGroupName } from '../components/ui.jsx'
 import { useApp } from '../store.jsx'
-import { COUNTRIES, MISSIONS } from '../i18n.js'
+import { COUNTRIES, MISSIONS, REGIONS, TIES, regionOf } from '../i18n.js'
 
 function SystemLine({ m }) {
-  const { tx } = useApp()
+  const { tx, L } = useApp()
   const who = m.snap?.nick
+  const tie = m.extra?.tie && COUNTRIES[m.extra.country] ? ` · ${COUNTRIES[m.extra.country].flag} ${L(COUNTRIES[m.extra.country])} ${L(TIES[m.extra.tie])}` : ''
   const text = {
     join: who ? tx(`${who} joined the group 👋`, `${who}님이 들어왔어요 👋`) : tx('A new member joined 👋', '새 멤버가 들어왔어요 👋'),
     leave: who ? tx(`${who} left the group`, `${who}님이 나갔어요`) : tx('A member left', '멤버 한 명이 나갔어요'),
     start: tx('🎉 Your group has started! Get to know each other.', '🎉 그룹이 시작됐어요! 서로 인사해 보세요.'),
     mission: tx(`✅ This week’s mission is done${who ? ` (${who})` : ''}!`, `✅ 이번 주 미션 완료${who ? ` (${who})` : ''}!`),
-    mentor: tx(`🇰🇷 ${who || 'A Korean mentor'} is now your mentor`, `🇰🇷 ${who || '한국인 멘토'}님이 멘토가 됐어요`),
-    mentorLeft: tx('The mentor left. A new mentor will join soon.', '멘토가 바뀌어요. 곧 새 멘토가 와요.'),
-    friend: tx(`🇰🇷 ${who || 'A Korean student'} joined as a Korean friend 👋`, `🇰🇷 ${who || '한국 학생'}님이 한국 친구로 들어왔어요 👋`),
+    mentor: tx(`🇰🇷 ${who || 'A Korean mentor'} is now your mentor`, `🇰🇷 ${who || '한국인 멘토'}님이 멘토가 됐어요`) + tie,
+    joinRegion: who ? tx(`${who} joined from a country group that was still forming 👋`, `${who}님이 들어왔어요 — 나라 조가 아직 모이지 않아 지역 조로 👋`) : tx('A new member joined 👋', '새 멤버가 들어왔어요 👋'),
+    movedRegion: tx('This group moved to a regional group to get started.', '이 조는 먼저 시작하려고 지역 조로 옮겼어요.'),
+    mentorLeft: tx(`${who || 'A mentor'} stopped mentoring this group.`, `${who || '멘토'}님이 이 그룹 멘토를 그만뒀어요.`),
+    friend: tx(`🇰🇷 ${who || 'A Korean mentor'} joined 👋`, `🇰🇷 ${who || '한국인 멘토'}님이 들어왔어요 👋`), // old v4 messages
   }[m.system]
   return <div className="system-note">{text}</div>
 }
@@ -30,7 +33,6 @@ function Bubble({ m, now }) {
           <span className="bubble-name">
             {m.snap?.nick || tx('Member', '멤버')}
             {m.mentor && <span className="tag manager">🇰🇷 {tx('Mentor', '멘토')}</span>}
-            {m.friend && <span className="tag gray">🇰🇷 {tx('Korean friend', '한국 친구')}</span>}
           </span>
         )}
         <div className={'bubble' + (m.mentor ? ' mentor' : '')}>
@@ -69,23 +71,23 @@ export default function Group() {
       <>
         <div className="screen with-tabs">
           <h1 className="h1">{tx('My group', '내 그룹')}</h1>
-          {me?.kr && (
-            <p className="note card">🇰🇷 {tx('No free Korean-friend seat in your countries yet. You still get their events and lounges.', '관심 나라 그룹에 아직 한국 친구 빈자리가 없어요. 그 나라 이벤트와 라운지는 계속 추천해 드려요.')}</p>
+          {me?.mentor && me?.kr && (
+            <p className="note card">🇰🇷 {tx('No group in your countries needs a mentor right now. Try “any country” — groups without a mentor come first.', '지금은 관심 나라 그룹에 멘토가 더 필요하지 않아요. 「어디든 괜찮아요」를 고르면 멘토가 없는 조부터 맡을 수 있어요.')}</p>
           )}
           <div className="card group-hero">
             <span style={{ fontSize: 34 }}>👥</span>
             <b className="h2">{tx('Meet your people in Korea', '한국에서 함께할 우리 조')}</b>
-            <span className="light-text">{tx('3–4 students from your country + 1 Korean mentor, for the whole semester. Free — always.', '같은 나라 친구 3~4명 + 한국인 멘토 1명이 한 학기 내내 함께해요. 언제나 무료예요.')}</span>
+            <span className="light-text">{tx('3–4 students from your country + a verified Korean mentor, for the whole semester. Free — always.', '같은 나라 친구 3~4명 + 인증된 한국인 멘토가 한 학기 내내 함께해요. 언제나 무료예요.')}</span>
             {me?.admin ? (
               <button className="btn white sm" onClick={() => go('admin')}>🇰🇷 {tx('Take a group as mentor', '멘토로 그룹 맡기')}</button>
             ) : (
-              <button className="btn accent sm" onClick={() => go('setup', me?.kr ? 'kr' : undefined)}>{me?.kr ? tx('Try again / change countries', '다시 찾기 · 관심 나라 바꾸기') : tx('Find my group', '내 그룹 찾기')}</button>
+              <button className="btn accent sm" onClick={() => go('setup', me?.mentor ? 'kr' : undefined)}>{me?.mentor ? tx('Find a group to mentor', '맡을 그룹 찾기') : tx('Find my group', '내 그룹 찾기')}</button>
             )}
           </div>
           <ul className="steps">
             <li><b>1</b>{tx('Pick your school and country', '학교와 나라를 고르면')}</li>
             <li><b>2</b>{tx('We put you in a group of 3–4 from the same country', '같은 나라 3~4명 그룹에 자동으로 들어가요')}</li>
-            <li><b>3</b>{tx('A Korean mentor joins and helps you settle in', '한국인 멘토가 함께하며 정착을 도와요')}</li>
+            <li><b>3</b>{tx('A verified Korean mentor joins and helps you settle in', '인증된 한국인 멘토가 함께하며 정착을 도와요')}</li>
             <li><b>4</b>{tx('Weekly missions and events with your group', '매주 미션, 그룹으로 이벤트 참가')}</li>
           </ul>
         </div>
@@ -98,7 +100,14 @@ export default function Group() {
   const mission = MISSIONS[((week % MISSIONS.length) + MISSIONS.length) % MISSIONS.length]
   const cap = data.rules.GROUP_CAP
   const forming = g.members.length < data.rules.GROUP_START
-  const groupEvents = data.events.filter((e) => e.status === 'open' && (e.myGroupCount > 0 || e.country === g.country)).slice(0, 2)
+  const countries = g.region || [g.country]
+  const groupEvents = data.events.filter((e) => e.status === 'open' && (e.myGroupCount > 0 || countries.includes(e.country))).slice(0, 2)
+  const waitDays = data.rules.REGION_WAIT_D
+  const daysLeft = g.formingSince ? Math.max(0, Math.ceil(waitDays - (data.now - g.formingSince) / 864e5)) : waitDays
+  const joinRegion = async () => {
+    if (!window.confirm(tx('Start now in a regional group with students from nearby countries? Your group moves together.', '가까운 나라 친구들과 지역 조로 지금 바로 시작할까요? 우리 조 멤버도 함께 옮겨요.'))) return
+    await call('joinRegion').catch(() => {})
+  }
 
   const send = async () => {
     if (!text.trim()) return
@@ -131,7 +140,7 @@ export default function Group() {
               <span className="col">
                 <b className="h2">{gn(g)}</b>
                 <span className="light-text">
-                  {g.mentoring ? tx('You are the mentor', '내가 멘토인 그룹') : g.friend ? tx('You are a Korean friend here', '한국 친구로 함께하는 그룹') : forming ? tx(`Waiting for members · starts at ${data.rules.GROUP_START}`, `멤버 모으는 중 · ${data.rules.GROUP_START}명이 되면 시작`) : tx('Together this semester', '이번 학기 함께해요')}
+                  {g.mentoring ? tx('You are a mentor here', '내가 멘토인 그룹') : forming ? tx(`Waiting for members · starts at ${data.rules.GROUP_START}`, `멤버 모으는 중 · ${data.rules.GROUP_START}명이 되면 시작`) : tx('Together this semester', '이번 학기 함께해요')}
                 </span>
               </span>
             </span>
@@ -141,24 +150,39 @@ export default function Group() {
             {g.members.map((m, i) => (
               <span key={i} className="member">
                 <Avatar snap={m.snap} size={40} />
-                <span>{m.me ? tx('Me', '나') : m.snap?.nick || tx('Member', '멤버')}</span>
+                <span>{g.region && m.country ? `${COUNTRIES[m.country]?.flag || ''} ` : ''}{m.me ? tx('Me', '나') : m.snap?.nick || tx('Member', '멤버')}</span>
               </span>
             ))}
-            {Array.from({ length: Math.max(0, cap - g.members.length) }, (_, i) => (
-              <span key={'e' + i} className="member empty"><span className="avatar-empty">+</span><span>{tx('Open', '빈자리')}</span></span>
-            ))}
-            {g.friends.map((f, i) => (
-              <span key={'f' + i} className="member friend">
-                <Avatar snap={f.snap} size={40} />
-                <span>{f.me ? tx('Me', '나') : `🇰🇷 ${f.snap?.nick || tx('Friend', '친구')}`}</span>
+            {g.mentors.map((m, i) => (
+              <span key={'k' + i} className="member mentor">
+                <Avatar snap={m.snap} size={40} />
+                <span>{m.me ? tx('Me', '나') : `🇰🇷 ${m.snap?.nick || tx('Mentor', '멘토')}`}</span>
               </span>
             ))}
-            <span className="member mentor">
-              {g.hasMentor ? <Avatar snap={g.mentor} size={40} /> : <span className="avatar-empty">🇰🇷</span>}
-              <span>{g.hasMentor ? `🇰🇷 ${g.mentor?.nick || tx('Mentor', '멘토')}` : tx('Mentor soon', '멘토 배정 중')}</span>
-            </span>
+            {!g.hasMentor && (
+              <span className="member mentor">
+                <span className="avatar-empty">🇰🇷</span>
+                <span>{tx('Mentor soon', '멘토 배정 중')}</span>
+              </span>
+            )}
           </div>
+          {g.mentors.filter((m) => m.tie && COUNTRIES[m.tieCountry]).map((m, i) => (
+            <span key={'t' + i} className="light-text tie-line">🇰🇷 {m.me ? tx('Me', '나') : m.snap?.nick} · {COUNTRIES[m.tieCountry].flag} {L(COUNTRIES[m.tieCountry])} {L(TIES[m.tie])}</span>
+          ))}
         </div>
+
+        {forming && !g.mentoring && !g.region && (
+          <div className="card forming-card">
+            <b>⏳ {tx('Waiting for students from your country', '같은 나라 친구를 기다리는 중이에요')}</b>
+            <span className="small">
+              {tx(
+                `If your group is still under ${data.rules.GROUP_START} in ${daysLeft} days, you all move together to a regional group (${REGIONS[regionOf(g.country)].en}) with students from nearby countries.`,
+                `${daysLeft}일 안에 ${data.rules.GROUP_START}명이 안 되면, 우리 조 멤버가 함께 가까운 나라 친구들의 지역 조(${REGIONS[regionOf(g.country)].ko})로 옮겨 시작해요.`,
+              )}
+            </span>
+            <button className="btn line xs" onClick={joinRegion}>🌏 {tx('Start now in a regional group', '지금 바로 지역 조로 시작')}</button>
+          </div>
+        )}
 
         <div className="card mission-card">
           <span className="small">{tx('This week’s group mission', '이번 주 그룹 미션')}</span>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Loading, TopBar, flagOf, useGroupName } from '../components/ui.jsx'
+import { COUNTRIES, REGIONS } from '../i18n.js'
 import { QuestionCard } from './Solve.jsx'
 import { EventCard } from './Events.jsx'
 import { useApp } from '../store.jsx'
@@ -8,16 +9,18 @@ const won = (n) => '₩' + Number(n || 0).toLocaleString()
 
 // Korean mentor page: look after groups, host events, help on the community board.
 export default function Admin() {
-  const { data, me, tx, go, call, snap, showToast } = useApp()
+  const { data, me, tx, L, go, call, snap, showToast } = useApp()
   const gn = useGroupName()
   const [tab, setTab] = useState('groups')
   const [busy, setBusy] = useState(false)
+  const [label, setLabel] = useState('')
+  const [issued, setIssued] = useState(null)
   if (!data) return <div className="screen"><Loading /></div>
   if (!me?.admin) {
     return (
       <div className="screen">
         <TopBar title={tx('Mentor', '멘토')} />
-        <p className="empty">{tx('Mentor mode is off. Enter an invite code in Settings.', '멘토 모드가 꺼져 있어요. 설정에서 초대 코드를 넣으세요.')}</p>
+        <p className="empty">{tx('Mentor mode is off. Enter your verification code in Settings.', '멘토 모드가 꺼져 있어요. 설정에서 인증 코드를 넣으세요.')}</p>
         <button className="btn soft sm" onClick={() => go('settings')}>{tx('Settings', '설정')}</button>
       </div>
     )
@@ -38,6 +41,7 @@ export default function Admin() {
     ['events', tx('Events', '이벤트'), 0],
     ['questions', tx('Questions', '질문'), decide.length + kstyle.length],
     ['reported', tx('Reports', '신고'), reported.length],
+    ...(me.operator ? [['codes', tx('Verify · recruit', '인증·모집'), 0]] : []),
   ]
   const s = data.adminStats
   const myShare = s?.admins.find((a) => a.pid === me.pid)
@@ -48,6 +52,18 @@ export default function Admin() {
       await call('mentorTake', { gid, snap })
       showToast(tx('You are now this group’s mentor 🇰🇷', '이 그룹의 멘토가 됐어요 🇰🇷'))
       go('group')
+    } catch {
+      /* toast shown */
+    }
+    setBusy(false)
+  }
+
+  const issue = async () => {
+    setBusy(true)
+    try {
+      const r = await call('codeCreate', { label })
+      setIssued(r.result.code)
+      setLabel('')
     } catch {
       /* toast shown */
     }
@@ -82,7 +98,7 @@ export default function Admin() {
 
       {tab === 'groups' && (
         <>
-          <p className="small">{tx(`Each group: 3–4 students from one country + you. Up to ${data.rules.MENTOR_MAX} groups per mentor.`, `그룹마다 같은 나라 학생 3~4명 + 멘토 1명. 멘토 한 명당 ${data.rules.MENTOR_MAX}개 그룹까지.`)}</p>
+          <p className="small">{tx(`Each group: 3–4 students from one country + up to ${data.rules.MENTOR_CAP} verified mentors. Up to ${data.rules.MENTOR_MAX} groups per mentor.`, `그룹마다 같은 나라 학생 3~4명 + 인증된 멘토 ${data.rules.MENTOR_CAP}명까지. 멘토 한 명당 ${data.rules.MENTOR_MAX}개 그룹까지.`)}</p>
           {mine.length > 0 && <h2 className="h3">{tx('My groups', '내가 맡은 그룹')}</h2>}
           <div className="list">
             {mine.map((g) => (
@@ -132,6 +148,52 @@ export default function Admin() {
           </div>
           <h2 className="h3">{tx('No answer yet', '아직 답 없음')}</h2>
           <div className="list">{unanswered.map((q) => <QuestionCard key={q.id} q={q} />)}</div>
+        </>
+      )}
+
+      {tab === 'codes' && me.operator && (
+        <>
+          <h2 className="h3">{tx('Countries that need a mentor', '멘토가 필요한 나라')}</h2>
+          <p className="small">{tx('Ask the international office to tell Korean students going on exchange to (or back from) these countries — a chance to make friends before they leave.', '국제처에 이 나라로 교환학생 갈 예정이거나 다녀온 한국 학생에게 알려 달라고 부탁하세요 — 가기 전에 그 나라 친구를 사귈 기회예요.')}</p>
+          <div className="tags">
+            {(() => {
+              const need = {}
+              for (const g of data.groups) if (g.members > 0 && !g.hasMentor) need[g.country] = (need[g.country] || 0) + g.members
+              const rows = Object.entries(need).sort((a, b) => b[1] - a[1])
+              if (!rows.length) return <span className="small">{tx('Every group has a mentor 🎉', '모든 그룹에 멘토가 있어요 🎉')}</span>
+              return rows.map(([c, n]) => {
+                const k = COUNTRIES[c] || REGIONS[c]
+                return <span key={c} className="tag gray">{k?.flag} {L(k || COUNTRIES.other)} · {tx(`${n} students waiting`, `학생 ${n}명 대기`)}</span>
+              })
+            })()}
+          </div>
+          <h2 className="h3">{tx('Issue a verification code', '인증 코드 발급')}</h2>
+          <p className="small">{tx('Check the student ID in person, then issue one code per person. The code is shown once; only a hash is stored. Nothing about the person is saved — the memo is for you (no names or student numbers, please).', '학생증을 직접 확인한 뒤 한 사람에게 코드 하나를 발급해요. 코드는 한 번만 보이고, 서버에는 해시만 남아요. 사람에 대한 정보는 저장하지 않아요 — 메모는 운영팀용 (이름·학번은 적지 마세요).')}</p>
+          <div className="row" style={{ gap: 8 }}>
+            <input className="input" value={label} maxLength={40} onChange={(e) => setLabel(e.target.value)} placeholder={tx('Memo, e.g. 10-04 booth #3', '메모 예: 10-04 부스 3번')} />
+            <button className="btn xs" disabled={busy} onClick={issue}>{tx('Issue', '발급')}</button>
+          </div>
+          {issued && (
+            <div className="card">
+              <span className="small">{tx('Give this code to the student now. It will not be shown again.', '지금 학생에게 알려 주세요. 다시 보이지 않아요.')}</span>
+              <div className="code-show">{issued}</div>
+            </div>
+          )}
+          <h2 className="h3">{tx('Issued codes', '발급한 코드')}</h2>
+          <div className="list">
+            {(data.mentorCodes || []).length === 0 && <p className="empty">{tx('None yet.', '아직 없어요.')}</p>}
+            {(data.mentorCodes || []).map((c) => (
+              <div key={c.id} className="card row-link">
+                <span className="col">
+                  <b>…{c.hint} {c.label ? `· ${c.label}` : ''}</b>
+                  <span className="small">{c.revoked ? tx('Revoked', '취소됨') : c.used ? tx('Used ✓', '사용됨 ✓') : tx('Not used yet', '아직 안 씀')}</span>
+                </span>
+                {!c.revoked && (
+                  <button className="btn line xs" disabled={busy} onClick={() => window.confirm(tx('Revoke this code? Its mentor loses mentor mode and leaves their groups.', '이 코드를 취소할까요? 이 코드로 인증한 멘토는 멘토 모드가 꺼지고 맡은 조에서 빠져요.')) && call('codeRevoke', { id: c.id }).catch(() => {})}>{tx('Revoke', '취소')}</button>
+                )}
+              </div>
+            ))}
+          </div>
         </>
       )}
 

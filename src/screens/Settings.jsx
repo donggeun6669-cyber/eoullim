@@ -6,7 +6,7 @@ import { useApp } from '../store.jsx'
 import { APP_LANGS } from '../i18n.js'
 
 export default function Settings() {
-  const { tx, lang, setLang, autoTr, setAutoTr, switchDevice, profile, me, started, restore, resetDevice, call, showToast, errorText, go } = useApp()
+  const { tx, lang, setLang, autoTr, setAutoTr, switchDevice, profile, me, started, restore, startOver, call, showToast, errorText, go } = useApp()
   const [reveal, setReveal] = useState(false)
   const [code, setCode] = useState('')
   const [adminCode, setAdminCode] = useState('')
@@ -75,19 +75,19 @@ export default function Settings() {
       {started && (
         <div className="card">
           <b>🇰🇷 {tx('Korean mentor', '한국인 멘토')}</b>
-          {me?.admin ? (
+          {me?.mentor ? (
             <>
-              <span className="small">{tx('Mentor mode is on for this phone.', '이 기기는 멘토 모드예요.')}</span>
+              <span className="small">{me.operator ? tx('Operator team — you can issue verification codes on the mentor page.', '운영팀 — 멘토 화면에서 인증 코드를 발급할 수 있어요.') : me.demoMentor ? tx('Demo mentor (not verified). In the real service a verification code is needed.', '데모 멘토 (인증 전). 실제 서비스에서는 인증 코드가 필요해요.') : tx('Verified Korean mentor ✓', '인증된 한국인 멘토 ✓')}</span>
               <div className="row" style={{ gap: 8, marginTop: 8 }}>
-                <button className="btn soft xs" onClick={() => go('admin')}>{tx('Open mentor page', '멘토 화면')}</button>
+                {me.admin && <button className="btn soft xs" onClick={() => go('admin')}>{tx('Open mentor page', '멘토 화면')}</button>}
                 <button className="btn line xs" onClick={() => call('adminLeave').then(() => showToast(tx('Mentor mode off', '멘토 모드를 껐어요'))).catch(() => {})}>{tx('Turn off', '끄기')}</button>
               </div>
             </>
           ) : (
             <>
-              <span className="small">{tx('Korean mentors get an invite code from the operator, offline. It is the only kind of sign-in in Eoullim.', '한국인 멘토는 운영자에게 오프라인으로 초대 코드를 받아요. 어울림의 유일한 「인증」이에요.')}</span>
+              <span className="small">{tx('Korean mentors are verified: the Eoullim team checks a student ID in person and gives a personal code. It is the only kind of sign-in in Eoullim.', '한국인 멘토는 인증을 받아요. 어울림 운영팀이 학생증을 직접 확인하고 한 사람에게 하나씩 인증 코드를 드려요. 어울림의 유일한 「인증」이에요.')}</span>
               <div className="row" style={{ gap: 8, marginTop: 8 }}>
-                <input className="input" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} placeholder={tx('Invite code', '초대 코드')} autoCapitalize="characters" autoComplete="off" />
+                <input className="input" value={adminCode} onChange={(e) => setAdminCode(e.target.value)} placeholder={tx('Verification code', '인증 코드')} autoCapitalize="characters" autoComplete="off" />
                 <button
                   className="btn xs"
                   disabled={busy || !adminCode.trim()}
@@ -95,7 +95,7 @@ export default function Settings() {
                     setBusy(true)
                     try {
                       await call('adminClaim', { code: adminCode.trim().toUpperCase() })
-                      showToast(tx('Mentor mode on 🇰🇷', '멘토 모드 켜짐 🇰🇷'))
+                      showToast(tx('Verified ✓ — mentor mode on 🇰🇷', '인증됐어요 ✓ — 멘토 모드 켜짐 🇰🇷'))
                       setAdminCode('')
                     } catch {
                       /* toast shown */
@@ -120,7 +120,7 @@ export default function Settings() {
             style={{ marginTop: 8 }}
             onClick={async () => {
               const r = await switchDevice().catch(() => null)
-              if (r === 'new') go('setup', profile?.who === 'kr' || me?.kr ? 'intl' : 'kr')
+              if (r === 'new') go('setup', profile?.who === 'kr' || me?.mentor ? 'intl' : 'kr')
               else if (r) {
                 showToast(tx('Switched', '전환했어요'))
                 go('home')
@@ -134,7 +134,7 @@ export default function Settings() {
               } catch {
                 /* ignore */
               }
-              return has ? tx('Switch to the other person', '다른 사람 화면으로 전환') : me?.kr ? tx('Start a second person: international student', '두 번째 사람으로 시작: 외국인 유학생') : tx('Start a second person: Korean student', '두 번째 사람으로 시작: 한국 학생')
+              return has ? tx('Switch to the other person', '다른 사람 화면으로 전환') : me?.mentor ? tx('Start a second person: international student', '두 번째 사람으로 시작: 외국인 유학생') : tx('Start a second person: Korean mentor', '두 번째 사람으로 시작: 한국인 멘토')
             })()}
           </button>
         </div>
@@ -142,18 +142,18 @@ export default function Settings() {
 
       {started && (
         <div className="card">
-          <b>{tx('Start over on this phone', '이 기기에서 새로 시작')}</b>
-          <span className="small">{tx('Makes a new code with 30 new points. Your current points stay with the old code.', '새 코드와 새 30포인트로 시작해요. 지금 포인트는 옛 코드에 남아요.')}</span>
+          <b>↺ {tx('Reset — start from the beginning', '초기화 — 처음부터 다시')}</b>
+          <span className="small">{tx('For demos: this phone (and the demo’s second person) leaves its group, mentor seat and events (paid ones are refunded), then the first screen opens. Posts stay. Your points stay with the old recovery code.', '데모용: 이 기기(와 데모로 전환한 다른 사람)가 그룹·멘토 자리·이벤트 신청에서 빠지고(결제는 환불) 첫 화면으로 돌아가요. 쓴 글은 남아요. 지금 포인트는 옛 복구 코드에 남아요.')}</span>
           <button
             className="btn line xs"
             style={{ marginTop: 8 }}
             onClick={async () => {
-              if (!window.confirm(tx('Did you save your current recovery code? Without it the points are gone.', '지금 복구 코드를 저장했나요? 없으면 포인트를 되찾을 수 없어요.'))) return
-              await resetDevice().catch(() => {})
-              showToast(tx('New start — 30 P', '새로 시작 — 30P'))
+              if (!window.confirm(tx('Reset and go back to the first screen?', '초기화하고 첫 화면으로 돌아갈까요?'))) return
+              await startOver()
+              showToast(tx('Reset — start again', '초기화했어요 — 처음부터 시작하세요'))
             }}
           >
-            {tx('Start over', '새로 시작')}
+            {tx('Reset', '초기화')}
           </button>
         </div>
       )}

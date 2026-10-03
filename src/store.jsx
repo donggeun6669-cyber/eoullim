@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, currentKey, newKey, rpc, setKey } from './lib/api.js'
+import { ApiError, clearKey, currentKey, newKey, rpc, setKey } from './lib/api.js'
 import { APP_LANGS, ERRORS } from './i18n.js'
 import { lookup, sameLang, subscribe } from './lib/translate.js'
 
@@ -151,11 +151,30 @@ export function AppProvider({ children }) {
     return 'new'
   }, [call, profile])
 
-  const resetDevice = useCallback(async () => {
-    setKey(newKey())
+  // Reset button (demo): free the seats of this device and of the demo's "other person", then show the
+  // welcome screen as if the app was opened for the first time. Language settings stay.
+  const startOver = useCallback(async () => {
+    let other = null
+    try {
+      other = localStorage.getItem('eoullim-key-other')
+    } catch {
+      /* ignore */
+    }
+    for (const k of [currentKey(), other]) {
+      if (k) await rpc('resetMe', {}, k).catch(() => {})
+    }
+    try {
+      for (const k of ['eoullim-key-other', 'eoullim-profile-other', LS_PROFILE, LS_STARTED]) localStorage.removeItem(k)
+      for (const k of Object.keys(localStorage)) if (k.startsWith('eoullim-seen-')) localStorage.removeItem(k)
+    } catch {
+      /* ignore */
+    }
+    clearKey()
+    setProfileState(null)
     setData(null)
-    await call('hello')
-  }, [call])
+    setStarted(false)
+    window.location.hash = '#/'
+  }, [])
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash())
@@ -211,7 +230,7 @@ export function AppProvider({ children }) {
   const myGroup = data?.me?.group || null
   const value = {
     school, myGroup,
-    lang, setLang, autoTr, setAutoTr, tr, tx, L, profile, setProfile, snap, started, start, restore, resetDevice, switchDevice,
+    lang, setLang, autoTr, setAutoTr, tr, tx, L, profile, setProfile, snap, started, start, restore, startOver, switchDevice,
     data, me: data?.me, call, refresh, route, go, back, toast, showToast, setToast, errorText,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

@@ -133,18 +133,17 @@ export function seedDb(now = Date.now()) {
     },
   )
 
-  // Groups: same school + same country, 3–4 students + 1 Korean mentor. Free.
+  // Groups: same school + same country, 3–4 students + 1 verified Korean mentor. Free.
   const MINJI = ADMIN
   const JIHUN = S('Jihun', '⭐', 4)
   const SEOYEON = S('Seoyeon', '🍀', 2)
   let mn = 0
   const msg = (snap, body, ageMin, mentor = false) => ({ id: `mseed${String(++mn).padStart(3, '0')}`, author: 'seed-' + snap.nick, snap, body, ageMin, mentor, seed: true })
   const mem = (snap, ageMin) => ({ pid: 'seed-' + snap.nick, snap, seed: true, ageMin })
-  const g = (id, country, n, members, mentor, messages, friends = []) => ({
-    id, school: 'skku', country, n, seed: true, members, mentor: mentor ? 'seed-' + mentor.nick : null, mentorSnap: mentor, messages, missions: {}, friends,
+  const g = (id, country, n, members, mentors, messages) => ({
+    id, school: 'skku', country, n, seed: true, members, messages, missions: {},
+    mentors: mentors.map((snap) => ({ pid: 'seed-' + snap.nick, snap, seed: true })),
   })
-  // Korean friend: a Korean student who likes this country (not a mentor). Example only.
-  const JIWOO = S('Jiwoo', '🌙', 1)
   const BEA = S('Bea', '🍀', 5), CARLO = S('Carlo', '🐧', 4), MARIA = S('Maria', '🌸', 1), JOSE = S('Jose', '🦊', 3)
   const ANA = S('Ana', '🦋', 6), PAOLO = S('Paolo', '🐙', 2)
   const HOA = S('Hoa', '🦋', 1), MINH = S('Minh', '🦉', 4), TRANG = S('Trang', '🍀', 5)
@@ -153,40 +152,39 @@ export function seedDb(now = Date.now()) {
   const HARU = S('Haruto', '⭐', 3), THANDAR = S('Thandar', '🌸', 0), AUNG = S('Aung', '🦉', 5)
 
   const groups = [
-    g('gseed01', 'ph', 1, [mem(MARIA, 20000), mem(JOSE, 19000), mem(ANA, 18000), mem(PAOLO, 15000)], JIHUN, [
+    g('gseed01', 'ph', 1, [mem(MARIA, 20000), mem(JOSE, 19000), mem(ANA, 18000), mem(PAOLO, 15000)], [JIHUN], [
       msg(JIHUN, '필리핀 1조 여러분, 이번 주 미션은 「서로의 나라 노래 한 곡씩 추천하기」예요 🎵', 4000, true),
       msg(MARIA, 'Ben&Ben – Maybe The Night! 🇵🇭', 3900),
       msg(JOSE, 'Hindi ko alam ang Korean songs… Jihun, ano ang paborito mo?', 3850),
       msg(JIHUN, '저는 아이유 「밤편지」요! 다음 모임 때 노래방 가요 🎤', 3800, true),
     ]),
-    g('gseed02', 'ph', 2, [mem(BEA, 3000), mem(CARLO, 2600)], MINJI, [
+    g('gseed02', 'ph', 2, [mem(BEA, 3000), mem(CARLO, 2600)], [MINJI], [
       msg(MINJI, '안녕하세요! 필리핀 2조 멘토 민지예요 😊 이번 주에 학식 같이 먹을래요?', 1500, true),
       msg(BEA, 'Yes!! Wednesday lunch works for me 🙌', 1480),
       msg(CARLO, 'Pwede ako sa Miyerkules. Saan tayo magkikita?', 1460),
       msg(MINJI, '수요일 12시에 학생회관 앞에서 만나요! 새 멤버가 오면 같이 가요 🍚', 1440, true),
       msg(BEA, 'Excited to meet our 3rd member! 🇵🇭', 300),
     ]),
-    g('gseed03', 'vn', 1, [mem(LIN, 25000), mem(HOA, 24000), mem(MINH, 22000), mem(TRANG, 21000)], SEOYEON, [
+    g('gseed03', 'vn', 1, [mem(LIN, 25000), mem(HOA, 24000), mem(MINH, 22000), mem(TRANG, 21000)], [SEOYEON], [
       msg(SEOYEON, '베트남 여성의 날 이벤트 열었어요! 이벤트 탭에서 신청해 주세요 💐', 2000, true),
       msg(LIN, 'Ngày 20/10 mình làm bánh mì cùng nhau nhé! 🥖', 1900),
       msg(HOA, 'Hay quá! Mình sẽ mang hoa 🌷', 1850),
-      { ...msg(JIWOO, '저 베트남어 배우고 있어요! 반미 만들 때 저도 갈게요 🇻🇳 Cảm ơn!', 1700), friend: true },
-    ], [mem(JIWOO, 1750)]),
-    g('gseed04', 'cn', 1, [mem(WEI, 16000), mem(LEI, 15000), mem(FANG, 9000)], JIHUN, [
+    ]),
+    g('gseed04', 'cn', 1, [mem(WEI, 16000), mem(LEI, 15000), mem(FANG, 9000)], [JIHUN], [
       msg(WEI, '这周末一起去明洞吗？', 700),
       msg(JIHUN, '좋아요! 토요일 2시에 명동역 6번 출구 어때요?', 650, true),
       msg(FANG, '好的！我第一次去明洞 😆', 640),
     ]),
-    g('gseed05', 'uz', 1, [mem(AZIZ, 6000), mem(DIL, 5000)], null, [
+    g('gseed05', 'uz', 1, [mem(AZIZ, 6000), mem(DIL, 5000)], [], [
       msg(AZIZ, 'Salom! Birinchi uchrashuvni qachon qilamiz?', 900),
       msg(DIL, 'Mentor kelganda boshlaymiz 😊', 880),
     ]),
-    g('gseed06', 'mn', 1, [mem(BAT, 14000), mem(SARAA, 13000), mem(TEMU, 12000)], MINJI, [
+    g('gseed06', 'mn', 1, [mem(BAT, 14000), mem(SARAA, 13000), mem(TEMU, 12000)], [MINJI], [
       msg(SARAA, 'Энэ долоо хоногт хамтдаа хуушуур хийх үү? 🥟', 800),
       msg(MINJI, '좋아요! 저도 호쇼르 만드는 법 배우고 싶어요 😋', 780, true),
     ]),
-    g('gseed07', 'jp', 1, [mem(YUKI, 8000), mem(HARU, 7000)], null, [msg(YUKI, 'はじめまして！よろしくお願いします 🙇', 600)]),
-    g('gseed08', 'mm', 1, [mem(THANDAR, 4000), mem(AUNG, 3500)], SEOYEON, [
+    g('gseed07', 'jp', 1, [mem(YUKI, 8000), mem(HARU, 7000)], [], [msg(YUKI, 'はじめまして！よろしくお願いします 🙇', 600)]),
+    g('gseed08', 'mm', 1, [mem(THANDAR, 4000), mem(AUNG, 3500)], [SEOYEON], [
       msg(THANDAR, 'မင်္ဂလာပါ! ဒီအပတ် ဘာလုပ်ကြမလဲ?', 500),
       msg(SEOYEON, '이번 주에 같이 한강 가요! 🌊', 480, true),
     ]),
@@ -250,5 +248,5 @@ export function seedDb(now = Date.now()) {
     }),
   ]
 
-  return { v: 4, seededAt: now, devices: {}, questions, posts, groups, events, payments: [], ledger: [], adminLog: [] }
+  return { v: 5, seededAt: now, devices: {}, questions, posts, groups, events, payments: [], ledger: [], adminLog: [], mentorCodes: [] }
 }

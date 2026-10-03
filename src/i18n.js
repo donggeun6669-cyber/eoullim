@@ -91,10 +91,19 @@ export const COUNTRIES = {
   other: { flag: '🌍', en: 'Other', ko: '기타', lang: 'en' },
   kr: { flag: '🇰🇷', en: 'Korea', ko: '한국', lang: 'ko' },
 }
+// Regional groups: countries with too few students for their own group (server/logic.js REGIONS).
+export const REGIONS = {
+  'r-ea': { flag: '🌏', en: 'East Asia', ko: '동아시아', countries: ['cn', 'jp'] },
+  'r-sea': { flag: '🌏', en: 'Southeast Asia', ko: '동남아시아', countries: ['ph', 'vn', 'mm', 'id', 'th'] },
+  'r-sca': { flag: '🌏', en: 'Central & South Asia', ko: '중앙·남아시아', countries: ['uz', 'mn', 'np'] },
+  'r-west': { flag: '🌍', en: 'Europe & Americas', ko: '유럽·미주', countries: ['us', 'fr', 'de'] },
+  'r-world': { flag: '🌍', en: 'World', ko: '세계', countries: ['other'] },
+}
+export const regionOf = (c) => Object.keys(REGIONS).find((r) => REGIONS[r].countries.includes(c)) || 'r-world'
 // "Philippines · Group 2" / "필리핀 2조"
 export const groupName = (g, lang) => {
   if (!g) return ''
-  const c = COUNTRIES[g.country] || COUNTRIES.other
+  const c = COUNTRIES[g.country] || REGIONS[g.country] || COUNTRIES.other
   return lang === 'ko' ? `${c.ko} ${g.n}조` : `${c.en} · Group ${g.n}`
 }
 export const EVENT_CATS = {
@@ -142,11 +151,17 @@ export const ERRORS = {
   bad_fee: ['Fee must be 0–200,000 won, in 100-won steps.', '참가비는 0~200,000원, 100원 단위예요.'],
   bad_date: ['Pick a date from today on.', '오늘 이후 날짜를 골라 주세요.'],
   not_admin: ['Mentors only.', '멘토만 할 수 있어요.'],
-  no_seat: ['No free Korean-friend seat in those countries yet. Your interests are saved.', '그 나라 그룹에 아직 한국 친구 빈자리가 없어요. 관심 나라는 저장했어요.'],
+  no_seat: ['No group in those countries needs a mentor right now. Your countries are saved — try “any country”.', '지금은 그 나라 그룹에 멘토가 더 필요하지 않아요. 관심 나라는 저장했어요 — 「어디든 괜찮아요」도 골라 보세요.'],
+  not_operator: ['Operator team only.', '운영팀만 할 수 있어요.'],
+  not_forming: ['Your group has already started.', '이미 시작한 그룹이에요.'],
   empty_group: ['This group has no students right now.', '지금 학생이 없는 그룹이에요.'],
   kr_student: ['You started as a Korean student.', '한국 학생으로 시작한 기기예요.'],
 }
-// Korean friends: what I can offer to students from the countries I follow.
+// Korean mentors: what I can offer to students from the countries I follow.
+export const TIES = {
+  going: ['exchange — going soon', '교환학생 갈 예정'],
+  been: ['exchange — been there', '교환학생 다녀옴'],
+}
 export const OFFERS = {
   language: ['Language exchange', '언어 교환'],
   life: ['Help with life in Korea', '한국 생활 도와주기'],
